@@ -1,12 +1,13 @@
 import SciLean
+import Mathlib.Tactic.PolyRith
 
-inductive Expr {R : Type} (atoms : List R)
-  | num (n : ℕ)
-  | add (x y : Expr atoms)
-  | mul (x y : Expr atoms)
+inductive Expr
+  | num (n : ℤ)
+  | add (x y : Expr )
+  | mul (x y : Expr )
   | atom (i : ℕ)
 
-def Expr.toRing {R : Type} [Ring R] (atoms : List R) (e : Expr atoms)  : R :=
+def Expr.toRing {R : Type} [Ring R] (atoms : List R) (e : Expr)  : R :=
   match e with
   | .num n => (n:R)
   | .add x y => x.toRing atoms + y.toRing atoms
@@ -14,7 +15,7 @@ def Expr.toRing {R : Type} [Ring R] (atoms : List R) (e : Expr atoms)  : R :=
   | .atom i => atoms.getD i 0
 
 @[data_synth out e]
-structure LiftExpr {R} [Ring R] (atoms : List R) (x : R) (e : Expr atoms) : Prop where
+structure LiftExpr {R} [Ring R] (atoms : List R) (x : R) (e : Expr) : Prop where
   to_ring : e.toRing atoms = x
 
 
@@ -72,10 +73,8 @@ variable (n m : ℕ) (x y z : ℝ)
 theorem replace_with_expr {R} [Ring R] (atoms : List R) (x : R) {ex} (hx : LiftExpr atoms x ex) :
   x = ex.toRing atoms := by simp[hx.1]
 
-example (x y : ℝ) : x*x*y = (((Expr.atom 0).mul (Expr.atom 0)).mul (Expr.atom 1) : Expr [x,y]).toRing := by
-   rw[replace_with_expr [x,y] (x*x*y) (by data_synth)]
 
-def Expr.toString {R : Type} {atoms : List R} (e : Expr atoms) : String :=
+def Expr.toString (e : Expr) : String :=
   match e with
   | .num n => s!"{n}"
   | .add x y => s!"({x.toString} + {y.toString})"
@@ -91,4 +90,46 @@ def b : ℝ := 134
 def c : ℝ := 34
 
 
-#eval exprToString [a,b,c] ((2:ℕ) * a * a + (3:ℕ))
+
+
+def indiscernibles : List ℚ := List.range 3 |>.map (λ i => (i:ℚ))
+
+
+def uh : String := exprToString [a,b,c] ((2:ℕ) * a * a + (3:ℕ))
+
+
+
+
+-- -- idea: X^2 + 1 : Polynomial ℚ should be able to be written as x^2 + 1 : ℚ by rw X ↔ x:ℚ
+-- def coer_poly (p : Polynomial ℚ) (x : ℚ) : ℚ := p.eval x
+
+open Finset AddMonoidAlgebra
+
+open Polynomial
+
+
+
+/-- Evaluate a polynomial `p` given a ring hom `f` from the scalar ring
+  to the target and a value `x` for the variable in the target -/
+-- def eval' (p : ℕ[X]) (x : ℚ) : String :=
+--   p.sum fun e a => exprToString ([x]) (a * x)
+
+
+
+
+
+-- convert a polynomial object into this form, then eval it on some free var x,
+-- then use our exprToString to get the string representation of the polynomial
+
+-- #eval a'.eval 2
+
+
+
+
+-- lemma todo (x : Polynomial ℚ): (x*x -1) = (x - 1) • (x + 1) := by polyrith
+
+
+noncomputable def w : Polynomial ℚ := X
+
+
+#eval exprToString [w] ((2:ℕ)*w + (1:ℕ))

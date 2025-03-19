@@ -8,7 +8,7 @@ import Mathlib.FieldTheory.Finite.GaloisField
 import Mathlib.Algebra.Polynomial.Basic
 import Mathlib.Algebra.MvPolynomial.Basic
 import Mathlib.Tactic.LinearCombination
-
+-- import LeanM2.test
 
 -- todo make the M2Ideal and Elem dependent on ring
 mutual
@@ -28,18 +28,18 @@ mutual
 
   structure M2Elem where
     (ring : M2Ring)
-    (expr : String)
+
 end
 
 
 open M2Ring M2Elem M2Ideal String
 
-def M2Elem.toString (e : M2Elem) : String := e.expr
+def M2Elem.toString (e : M2Elem) : String := "temp"
 
 def M2Ideal.toString (I : M2Ideal) : String :=
   "ideal(" ++ (String.intercalate ", " (I.generators.map M2Elem.toString)) ++ ")"
 
-def String.toM2Elem (s : String) (R : M2Ring): M2Elem := ⟨R, s⟩
+def String.toM2Elem (s : String) (R : M2Ring): M2Elem := ⟨R⟩
 
 
 
@@ -142,6 +142,13 @@ instance (R : Type) {n:Nat} [CommRing R] [ToM2Ring R] : ToM2Ring (MvPolynomial (
     M2Ring.Poly baseRing vars
 
 
+instance (R : Type) {n:Nat} [CommRing R] [ToM2Ring R] : ToM2Ring (MvPolynomial (Fin n) R) where
+  toM2Ring :=
+    let baseRing := ToM2Ring.toM2Ring R
+    let vars := List.range n |>.map (fun i => s!"x{i}".toM2Elem baseRing)
+    M2Ring.Poly baseRing vars
+
+
 #eval ToM2Ring.toM2Ring ℚ
 
 instance : Fact (Nat.Prime 7) := ⟨by decide⟩
@@ -155,17 +162,22 @@ end ToM2Ring
 namespace ToM2Elem
 
 
+
+
+
+
+
 instance (R : Type) [ToM2Ring R] : ToM2Elem R R where
-  toM2Elem := fun r => ⟨ToM2Ring.toM2Ring R, r.toString⟩
+  toM2Elem := fun r => ⟨ToM2Ring.toM2Ring R⟩
 
 end ToM2Elem
 
-namespace ToM2Ideal
+-- namespace ToM2Ideal
 
--- something about instancing it for a general ideal with some
--- (finite) set of generators (as a Submodule)
-instance (R : Type) [Ring R] [ToM2Ring R] (I : Ideal R): ToM2Ideal I R where
-  toM2Ideal := fun I => ⟨ToM2Ring.toM2Ring R, I.gens.map (ToM2Elem.toM2Elem R)⟩
+-- -- something about instancing it for a general ideal with some
+-- -- (finite) set of generators (as a Submodule)
+-- instance (R : Type) [Ring R] [ToM2Ring R] (I : Ideal R): ToM2Ideal I R where
+--   toM2Ideal := fun I => ⟨ToM2Ring.toM2Ring R, I.gens.map (ToM2Elem.toM2Elem R)⟩
 
 
-end ToM2Ideal
+-- end ToM2Ideal
