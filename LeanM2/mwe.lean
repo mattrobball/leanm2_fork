@@ -1,6 +1,6 @@
 import SciLean
 import LeanM2.toM2
-
+import Mathlib.Tactic.PolyRith
 inductive Expr (R : Type) [Ring R]
   | lift (r : R)
   | add (x y : Expr R)
@@ -331,7 +331,10 @@ unsafe def liftRhsTactic : Tactic
   --   logInfo s!"{lst.toString}"
   -- catch e =>
   --   throwError m!"invalid expression {result}: {← e.toMessageData.toString}"
-  logInfo s!"R=QQ[x0,x1]\nf={polynomial.toString}\nI={ideal.toString}\nG=groebnerBasis I\nf % G"
+  let cmd := s!"R=QQ[x0,x1]\nf={polynomial.toString}\nI={ideal.toString}\nG=groebnerBasis I\nf % G"
+  -- logInfo cmd
+
+  logInfo s!"{← idealMemM2' cmd}"
 
 
   pure ()
@@ -354,6 +357,10 @@ example (x y : ℚ) : Ideal.span {x} = Ideal.span {y} := by
   lift_rhs (RingHom.id ℚ) [x,y]
 
 
+set_option trace.Meta.Tactic.data_synth false
 
-example (x y : ℚ) : x^2*y ∈ Ideal.span {y}  := by
+example (x y : ℚ) : x^2*y ∈ Ideal.span {x,y}  := by
+  lift_rhs (RingHom.id ℚ) [x,y]
+
+example (x y : ℚ) : x^2*y+(RingHom.id ℚ (1:ℚ)) ∈ Ideal.span {x,y}  := by
   lift_rhs (RingHom.id ℚ) [x,y]
