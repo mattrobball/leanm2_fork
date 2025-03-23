@@ -5,8 +5,8 @@ namespace M2Elem
 
 
 
-instance (R : Type) [ToM2Ring R] : ToM2Elem R R where
-  toM2Elem := fun r => ⟨ToM2Ring.toM2Ring R, r.toString⟩
+-- instance (R : Type) [ToM2Ring R] : ToM2Elem R R where
+--   toM2Elem := fun r => ⟨ToM2Ring.toM2Ring R⟩
 
 
 
@@ -77,16 +77,16 @@ theorem lift_atom (x : S) {n} (hx : IsAtomExpr atoms x n) :
   to_ring := by simp_all[Expr.toRing,hx.1,hx.2]
 
 
-def Expr.toString {R} [Ring R] [ToM2Ring R] (e : Expr R) : String :=
+def Expr.toString {R} [Ring R] [ToM2Ring R] [ToString R] (e : Expr R) : String :=
   match e with
-  | .lift r => s!"r" -- todo fix with M2Ring
+  | .lift r => s!"{r}"
   | .pow x n => s!"({x.toString}^{n})"
   | .add x y => s!"({x.toString} + {y.toString})"
   | .mul x y => s!"({x.toString} * {y.toString})"
   | .atom i => s!"x{i}"
 
 
-def exprToString {R S} [Ring R] [ToM2Ring R] [Ring S] [ToM2Ring S] (f : RingHom R S) (atoms : List S) (x : S) {ex} (hx : LiftExpr f atoms x ex := by data_synth) :
+def exprToString {R S} [Ring R] [ToString R] [ToM2Ring R] [Ring S] [ToM2Ring S] (f : RingHom R S) (atoms : List S) (x : S) {ex} (hx : LiftExpr f atoms x ex := by data_synth) :
   String := ex.toString
 
 
