@@ -3,6 +3,7 @@ import json
 import sys
 import subprocess
 import os
+import re
 
 
 def idealMemM2(cmd):
@@ -21,11 +22,67 @@ def idealMemM2(cmd):
             text=True,
         )
 
+        is_valid = False
         if "o5 = 0" in result.stdout:
-            return True
+            is_valid = True
         else:
-            # print("Output:", result.stderr)
-            return False
+            is_valid = False
+
+        grob = ""
+        for line in result.stdout.splitlines():
+            if line.strip().startswith("o4 ="):
+                grob = line.strip()[5:].strip()  # Extract everything after "o4 ="
+                break
+        else:
+            is_valid = False
+            grob = ""
+
+        # Extract construction if it exists
+        construction = ""
+        found_o6 = False
+        for i, line in enumerate(result.stdout.splitlines()):
+            if found_o6:
+                if not line.strip():  # Empty line
+                    break
+                construction += line + "\n"
+            elif line.strip().startswith("o6 ="):
+                found_o6 = True
+                construction += line.replace("o6 =", "") + "\n"
+
+        if not found_o6:
+            is_valid = False
+            construction = ""
+        else:
+            construction = construction.rstrip()  # Remove trailing newline
+
+        ideal = (
+            cmd.splitlines()[2]
+            .replace("I=ideal(", "")
+            .replace(")", "")
+            .strip()
+            .split(",")
+        )
+        ideal = [x.strip() for x in ideal if x.strip()]  # Clean up any empty strings
+        if is_valid:
+
+            better_grob = grob[1:-1].strip().split(" ")
+            better_constr = construction.strip().split("\n")
+            paired = []
+            for i in range(len(better_grob)):
+
+                # get idx of ideal generator corresponding to the curr grob elem
+                idx = ideal.index(better_grob[i].strip())
+
+                # Extract the content between pipe symbols (e.g., get "x0^2" from "{1} | x0^2 |")
+                constr_part = re.search(r"\|\s*(.*?)\s*\|", better_constr[i])
+                constr_value = constr_part.group(1) if constr_part else better_constr[i]
+                paired.append(
+                    {"grob": better_grob[i], "const": constr_value, "gen_idx": idx}
+                )
+
+            return json.dumps(paired)
+        else:
+            return ""
 
     finally:
         # Clean up the temporary file

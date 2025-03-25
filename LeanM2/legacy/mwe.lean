@@ -1,6 +1,11 @@
 import SciLean
 import LeanM2.toM2
-import Mathlib.Tactic.PolyRith
+import Lean.Data.Json.Basic
+import Mathlib.Data.FP.Basic
+
+open Lean
+
+
 inductive Expr (R : Type) [Ring R]
   | lift (r : R)
   | add (x y : Expr R)
@@ -79,9 +84,172 @@ def exprToString {R S} [Ring R] [ToString R]  [Ring S]  (f : RingHom R S) (atoms
   String := ex.toString
 
 
+def toRatParts (f : Float) : Option (Int × Int) :=
+  if f.isFinite then
+    let (f', exp) := f.frExp
+    let x := (2^53:Nat).toFloat * f'
+    let v := if x < 0 then
+      (-(-x).floor.toUInt64.toNat : Int)
+    else
+      (x.floor.toUInt64.toNat : Int)
+    some (v, exp - 53)
+  else none
+
+def toRat (f : Float) : Option Rat :=
+  if let some (v, exp) := toRatParts f then
+    if exp ≥ 0 then
+      some (v * ((2^exp.toNat:Nat) : Rat))
+    else
+      some ((v : Rat) / ((2^(-exp).toNat : Nat):Rat))
+  else none
 
 
 
+
+def String.toRat?' (s:String) : Option ℚ :=
+  let json? : Option Json := (Json.parse s).toOption
+  let num? := match json? with
+  | some json => json.getNum? |>.toOption
+  | none => none
+
+  let flt? := match num? with
+  | some num => some num.toFloat
+  | none => none
+
+  let fpflt? := match flt? with
+  | some flt => if flt.isFinite then toRat flt else none
+  | none => none
+
+  fpflt?
+
+
+
+def String.toRat? (s:String) : Option ℚ :=
+  if let some i := String.toInt? s then
+    some i
+  else if s.contains '/' then
+    let parts := s.splitOn "/"
+    if parts.length == 2 then
+        match (String.toInt? parts[0]!, String.toInt? parts[1]!) with
+        | (some n, some d) => if d ≠ 0 then some ((n:ℚ)/(d:ℚ)) else none
+        | _ => none
+    else none
+  else if s.contains '.' then
+    let parts := s.splitOn "."
+    if parts.length == 2 then
+      match (String.toInt? parts[0]!, String.toInt? parts[1]!) with
+      | (some n, some d) =>
+        let d' : ℕ := d.natAbs
+        let decimalDigits := (Nat.digits 10 d').length
+        let denominator : Int := 10^decimalDigits
+        some ((n:ℚ) + (d:ℚ) / denominator)
+      | _ => none
+    else none
+  else
+    String.toRat?' s
+
+
+partial def String.toQExpr (s:String) : Option (Expr ℚ) :=
+  let s := s.trim
+  let s := if s.startsWith "(" && s.endsWith ")" then s.drop 1 |>.dropRight 1 else s
+
+  if s.contains '^' then
+    let parts := s.splitOn "^"
+    if parts.length >= 2 then
+      let base := "^".intercalate (List.range (parts.length) |>.filterMap (fun i=> if i==parts.length-1 then none else parts[i]!))
+      match (String.toQExpr base, String.toNat? parts[parts.length-1]!) with
+      | (some base, some exp) => some <| .pow base exp
+      | _ => none
+    else
+      none
+  else if s.contains '*' then
+    let parts := s.splitOn "*"
+    if parts.length >= 2 then
+      match (String.toQExpr parts[0]!, String.toQExpr <| "*".intercalate
+        (List.range (parts.length) |>.filterMap (fun i=> if i==0 then none else parts[i]!)))
+          with
+      | (some l, some r) => some <| .mul l r
+      | _ => none
+    else
+      none
+  else if s.contains '+' then
+    let parts := s.splitOn "+"
+    if parts.length >= 2 then
+      let rhs := "+".intercalate
+        (List.range (parts.length) |>.filterMap (fun i=> if i==0 then none else some parts[i]!))
+      match (String.toQExpr parts[0]!, String.toQExpr rhs)
+          with
+      | (some l, some r) => some <| .add l r
+      | _ => none
+    else
+      none
+  else if s.startsWith "x" then (
+    let n := s.drop 1 |>.toNat?
+    match n with
+    | some n => some <| .atom n
+    | none => none)
+  else if let some q := s.toRat? then
+    some <| .lift q
+
+  else
+    none
+
+
+
+partial def String.toQExpr' (s:String) : IO Unit := do
+  IO.println s
+  let s := s.trim
+  let s := if s.startsWith "(" && s.endsWith ")" then s.drop 1 |>.dropRight 1 else s
+
+  if s.contains '^' then
+    let parts := s.splitOn "^"
+    IO.println parts
+    if parts.length >= 2 then
+      let base := "^".intercalate (List.range (parts.length) |>.filterMap (fun i=> if i==parts.length-1 then none else parts[i]!))
+      String.toQExpr' base
+      -- let _:=String.toNat? parts[1]!
+      pure ()
+    else
+      pure ()
+  else if s.contains '*' then
+    let parts := s.splitOn "*"
+    if parts.length >= 2 then
+      String.toQExpr' parts[0]!
+      String.toQExpr' <| "*".intercalate
+        (List.range (parts.length) |>.filterMap (fun i=> if i==0 then none else parts[i]!))
+
+      pure ()
+    else
+      pure ()
+  else if s.contains '+' then
+    let parts := s.splitOn "+"
+    if parts.length >= 2 then
+      let rhs := "+".intercalate
+        (List.range (parts.length) |>.filterMap (fun i=> if i==0 then none else some parts[i]!))
+      String.toQExpr' parts[0]!
+      String.toQExpr' rhs
+      pure ()
+    else
+      pure ()
+  else if s.startsWith "x" then (
+    let n := s.drop 1 |>.toNat?
+    pure ())
+  else if let some q := s.toRat? then
+    pure ()
+
+
+
+
+
+  else
+    pure ()
+
+
+
+
+#eval String.toQExpr' "(x0^2+1)^3"
+
+#eval String.toQExpr "(x0^2+1)^3" |>.get!
 
 
 
@@ -263,6 +431,12 @@ def getMem : TacticM ((Lean.Expr × Lean.Expr× Lean.Expr) × Lean.Expr) := do
     let some (_, ideal, ideal', ideal'', elem) ← matchMem? type | throwError s!"invalid mem goal\n\n{type.dbgToString}"
     return ((ideal,ideal',ideal''), elem)
 
+partial def parseExprList (data : Lean.Expr) (acc : List Lean.Expr := []) : List Lean.Expr :=
+  let data' := data.app3? ``List.cons
+  match data' with
+  | some (_, arg, rest) =>
+      parseExprList rest (arg :: acc)
+  | none => acc.reverse
 
 
 open Lean Meta Elab  Tactic Conv Qq in
@@ -331,10 +505,47 @@ unsafe def liftRhsTactic : Tactic
   --   logInfo s!"{lst.toString}"
   -- catch e =>
   --   throwError m!"invalid expression {result}: {← e.toMessageData.toString}"
-  let cmd := s!"R=QQ[x0,x1]\nf={polynomial.toString}\nI={ideal.toString}\nG=groebnerBasis I\nf % G"
-  -- logInfo cmd
+  let atoms' := parseExprList atoms
+  let cmd := s!"R=QQ{if atoms'.length == 0 then "" else s!"{List.range atoms'.length |>.map (fun i => s!"x{i}")}"}\nf={polynomial.toString}\nI={ideal.toString}\nG=groebnerBasis I\nf % G\nf//G"
+  logInfo cmd
+  let res? ← idealMemM2' cmd
+  if res?.isNone then
+    logError s!"Not in ideal"
+  else
+    let arr := res?.get!
+    logInfo s!"{arr}"
 
-  logInfo s!"{← idealMemM2' cmd}"
+    -- let idealGenStrs := ideal.toString.dropPrefix "ideal(".dropSuffix ")"
+    --            |>.split fun c => c == ','
+    let idealGenerators : Array (Expr ℚ) := ideal.generators.toArray
+    let mappedRes : Array (Expr ℚ × String) := arr.map (fun (_, (coeff, idx)) =>
+      let exp := idealGenerators.get! idx
+      (exp, coeff)
+    )
+    logInfo s!"{mappedRes.map (fun (a,b) => s!"{a.toString}*{b}") |>.toList.toString}"
+    -- )
+    --   let idealGenStr := idx.trim
+    --   let mut foundIdx := 0
+    --   for i in [:idealGenStrs.size] do
+    --   if idealGenStrs[i]!.trim == idealGenStr then
+    --     foundIdx := i
+    --     break
+    --   if foundIdx < ideal.generators.length then
+    --   return (ideal.generators[foundIdx]!, coeff)
+    --   else
+    --   throwError s!"Failed to find generator for {idealGenStr}"
+    -- logInfo s!"Result: {mappedRes}"
+
+    -- let mapped_fst : Array (Lean.Expr × String) := arr.map (fun item =>
+    --   let idx := item.1.replace "x" "" |>.toNat!
+    --   let exp := atoms'.get! idx
+
+    --   (exp, item.2)
+    -- )
+
+
+
+    -- logInfo s!"{atoms'}\n{mapped_fst}"
 
 
   pure ()
@@ -351,16 +562,32 @@ unsafe def liftRhsTactic : Tactic
 example (x y : Polynomial ℚ) : (Polynomial.C 2)+x^2*y = y := by
   -- ((x0)^2 * x1)
   lift_lhs (Polynomial.C : RingHom ℚ (Polynomial ℚ)) [x,y]
-
-example (x y : ℚ) : Ideal.span {x} = Ideal.span {y} := by
-  -- ideal(x1)
-  lift_rhs (RingHom.id ℚ) [x,y]
+  sorry
+-- example (x y : ℚ) : Ideal.span {x} = Ideal.span {y} := by
+--   -- ideal(x1)
+--   lift_rhs (RingHom.id ℚ) [x,y]
 
 
 set_option trace.Meta.Tactic.data_synth false
 
 example (x y : ℚ) : x^2*y ∈ Ideal.span {x,y}  := by
   lift_rhs (RingHom.id ℚ) [x,y]
+  sorry
 
-example (x y : ℚ) : x^2*y+(RingHom.id ℚ (1:ℚ)) ∈ Ideal.span {x,y}  := by
-  lift_rhs (RingHom.id ℚ) [x,y]
+-- example (x y : ℚ) : x^2*y+(RingHom.id ℚ 1) ∈ Ideal.span {x,y}  := by
+--   lift_rhs (RingHom.id ℚ) [x,y]
+
+
+example (x y : ℚ) : x^2*y ∈ Ideal.span {x}  := by
+  -- lift_rhs (RingHom.id ℚ) [x,y]
+  refine Ideal.mem_span_singleton'.mpr ?_
+  use x*y
+  ring
+
+
+
+example (x y : ℚ) : x^2*y ∈ Ideal.span {x, y}  := by
+  -- lift_rhs (RingHom.id ℚ) [x,y]
+  refine Ideal.mem_span_pair.mpr ?_
+  use x*y; use 0
+  ring
