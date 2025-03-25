@@ -54,6 +54,8 @@ def toRat (f : Float) : Option Rat :=
       some ((v : Rat) / ((2^(-exp).toNat : Nat):Rat))
   else none
 
+#eval toRat 2.1
+
 
 
 
@@ -72,6 +74,8 @@ def String.toRat?' (s:String) : Option ℚ :=
   | none => none
 
   fpflt?
+
+
 
 
 
@@ -186,7 +190,7 @@ def parsePolynomial (s : String) : Except String (Expr ℚ) :=
   parseString parseExpr s
 
 open IO
-#eval parsePolynomial "x_1^2 + 2*x_1 + 3/4" |>.toOption|>.get!
+#eval parsePolynomial "x1^2 + 2*x1 + 3/4" |>.toOption|>.get!
 #eval parsePolynomial "((x_1 + x_2)^2)^3" |>.toOption|>.get!
 #eval parsePolynomial "3.5*x_1 + 2*x_2^3"|>.toOption|>.get!
 #eval parsePolynomial "x0^2"|>.toOption|>.get!

@@ -1,10 +1,10 @@
 import LeanM2.defs
 import LeanM2.parser
 import LeanM2.toM2
+import Lean.PrettyPrinter.Delaborator.Basic
+import Mathlib.Tactic.Use
 
-
-syntax (name:=liftLhsStx) "lift_lhs" term: tactic
-syntax (name:=liftRhsStx) "lift_rhs" term : tactic
+syntax (name:=leanM2Stx) "lean_m2" term : tactic
 
 
 open Lean Meta
@@ -20,39 +20,6 @@ def checkNoFVars (e : Lean.Expr) (errMsg : Array Lean.Expr → MessageData) : Me
 open Lean Meta in
 def _root_.SciLean.Tactic.DataSynth.DataSynthM.runInMetaM (e : SciLean.Tactic.DataSynth.DataSynthM α) : MetaM α := do
   e.runInSimpM.run (← Simp.mkDefaultMethods).toMethodsRef (← Simp.mkContext) (← ST.mkRef {})
-
-
-open Lean Meta Elab  Tactic Conv Qq in
-@[tactic liftLhsStx]
-unsafe def liftLhsTactic : Tactic
-| `(tactic| lift_lhs $lift:term $atoms:term) => do
-  let atoms ← elabTerm atoms none
-  let lift ← elabTerm lift none
-  let lhs ← getLhs
-  -- logInfo s!"lhs: {lhs.dbgToString}\n\n"
-  let e ← mkAppM ``LiftExpr #[lift, atoms, lhs]
-  let (xs,_,_) ← forallMetaTelescope (← inferType e)
-  let e := e.beta xs
-
-  let .some goal ← SciLean.Tactic.DataSynth.isDataSynthGoal? e | throwError "invalid goal"
-  let .some r ← (SciLean.Tactic.DataSynth.dataSynth goal).runInMetaM
-    | throwError m!"failed to lift expression {lhs}"
-
-  let result := r.xs[0]!
-  checkNoFVars result (fun xs => m!"error: resulting expression contains fvars {xs}")
-
-  try
-    let expr ← evalExpr (_root_.Expr Rat) q(_root_.Expr Rat) result
-
-    -- now we have `expr : RingExpr` and we can do what ever we want with it
-    logInfo s!"{expr.toString}"
-  catch _ =>
-    throwError m!"invalid expression {result}"
-
-
-  pure ()
-| _ =>
-  throwUnsupportedSyntax
 
 
 
@@ -78,11 +45,66 @@ partial def parseExprList (data : Lean.Expr) (acc : List Lean.Expr := []) : List
       parseExprList rest (arg :: acc)
   | none => acc.reverse
 
+open Qq Rat in
+def Expr.QtoLeanExpr {S: Q(Type)} {hS:Q(Ring $S)}  (f : Q(RingHom ℚ $S)) (atoms : List Q($S)) (e : Expr ℚ)  : MetaM Lean.Expr := do
 
-open Lean Meta Elab  Tactic Conv Qq in
-@[tactic liftRhsStx]
-unsafe def liftRhsTactic : Tactic
-| `(tactic| lift_rhs $lift:term $atoms:term) => do
+  let output := match e with
+  | .lift r => do
+    let num :ℤ := r.num
+    let denom :ℤ := r.den
+    let r' := q($num /. $denom)
+    mkAppM' f #[r']
+  | .add x y => do
+    let fst ← x.QtoLeanExpr f atoms
+    let snd ← y.QtoLeanExpr f atoms
+    mkAppM ``HAdd.hAdd #[fst, snd]
+  | .mul x y => do
+    let fst ← x.QtoLeanExpr f atoms
+    let snd ← y.QtoLeanExpr f atoms
+    mkAppM ``HMul.hMul #[fst, snd]
+  | .pow x n => do
+    let base ← x.QtoLeanExpr f atoms
+    let n' := mkNatLit n
+    mkAppM ``HPow.hPow #[base, n']
+  | .atom i =>
+    let df := mkNatLit i
+    pure <| atoms.getD i df
+
+  output
+
+
+open Qq Rat in
+def Expr.QtoLeanExpr' (f : Lean.Expr) (atoms : List Lean.Expr) (e : Expr ℚ)  : MetaM Lean.Expr := do
+
+  let output := match e with
+  | .lift r => do
+    let num :ℤ := r.num
+    let denom :ℤ := r.den
+    let r' := q($num /. $denom)
+    mkAppM ``DFunLike.coe #[f, r']
+  | .add x y => do
+    let fst ← x.QtoLeanExpr' f atoms
+    let snd ← y.QtoLeanExpr' f atoms
+    mkAppM ``HAdd.hAdd #[fst, snd]
+  | .mul x y => do
+    let fst ← x.QtoLeanExpr' f atoms
+    let snd ← y.QtoLeanExpr' f atoms
+    mkAppM ``HMul.hMul #[fst, snd]
+  | .pow x n => do
+    let base ← x.QtoLeanExpr' f atoms
+    let n' := mkNatLit n
+    mkAppM ``HPow.hPow #[base, n']
+  | .atom i =>
+    let df := mkNatLit i
+    pure <| atoms.getD i df
+
+  output
+
+
+open Lean Meta Elab Tactic Conv Qq in
+@[tactic leanM2Stx]
+unsafe def leanM2Tactic : Tactic
+| `(tactic| lean_m2 $lift:term $atoms:term) => do
   let atoms ← elabTerm atoms none
   let lift ← elabTerm lift none
   -- let rhs ← getRhs
@@ -137,21 +159,22 @@ unsafe def liftRhsTactic : Tactic
 
   let atoms' := parseExprList atoms
   let cmd := s!"R=QQ{if atoms'.length == 0 then "" else s!"{List.range atoms'.length |>.map (fun i => s!"x{i}")}"}\nf={polynomial.toString}\nI={ideal.toString}\nG=groebnerBasis I\nf % G\nf//G"
-  logInfo cmd
+  logInfo s!"{cmd}"
   let res? ← idealMemM2' cmd
   if res?.isNone then
     logError s!"Not in ideal"
   else
     let arr := res?.get!
-    logInfo s!"{arr}"
+    -- logInfo s!"{arr}"
 
 
     let idealGenerators : Array (Expr ℚ) := ideal.generators.toArray
-    let mappedRes : Array (Expr ℚ × String) := arr.map (fun (_, (coeff, idx)) =>
+
+    let mut mappedRes : Array (Expr ℚ × String) := Array.mkArray idealGenerators.size (Expr.lift 0, "0")
+    for (_, (coeff, idx)) in arr do
       let exp := idealGenerators.get! idx
-      (exp, coeff)
-    )
-    logInfo s!"{mappedRes}"--".map (fun (a,b) => s!"{a.toString}*{b}") |>.toList.toString}"
+      mappedRes := mappedRes.set! idx (exp, coeff)
+    -- logInfo s!"{mappedRes}"
 
     let mappedRes'_opt : Array (Expr ℚ × Option (Expr ℚ)) := mappedRes.map (fun (a,b) =>
       let parsed := parsePolynomial b |>.toOption
@@ -162,7 +185,46 @@ unsafe def liftRhsTactic : Tactic
       logError s!"failed to parse polynomial coefficients: {mappedRes'_opt.filter (fun (_, b) => b.isNone)|>.map (fun (a,b) => a.toString)}"
 
     let mappedRes' : Array (Expr ℚ × Expr ℚ) := mappedRes'_opt.map (fun (a,b) => (a, b.get!))
-    logInfo s!"{mappedRes'}"
+    logInfo s!"{" + ".intercalate <|  mappedRes'.toList.map (fun (a,b) => s!"({b.toString} * {a.toString})")}"
+
+    let mappedRes'' :Array (Lean.Expr × Lean.Expr) ←  mappedRes'.mapM (fun (a,b) => do
+      let a' ← a.QtoLeanExpr' lift atoms' -- TODO: fix this
+      let b' ← b.QtoLeanExpr' lift atoms'
+      pure (a', b')
+    )
+
+    -- logInfo m!"{mappedRes''}"
+
+    let mappedRes''' : Array Term ←  mappedRes''.mapIdxM (fun i (_, coeff) => do
+      let neg ← if i < mappedRes''.size - 1 then
+        mkAppM ``Neg.neg #[coeff]
+      else
+        pure coeff
+
+      -- mkAppM ``Exists.intro xs
+      let negTerm ← Lean.PrettyPrinter.delab neg
+      return negTerm
+    )
+
+    -- logInfo m!"{mappedRes'''}"
+
+
+    -- Run the simp tactic with the specified lemmas
+    evalTactic (← `(tactic| simp [Ideal.mem_span_insert', Ideal.mem_span_singleton']))
+
+    Mathlib.Tactic.runUse false (← Mathlib.Tactic.mkUseDischarger none) (mappedRes'''.toList)
+
+    evalTactic (← `(tactic| simp))
+
+    -- Check if there are any goals left, and run ring if needed
+    let gs ← getGoals
+    if !gs.isEmpty then
+      evalTactic (← `(tactic| ring))
+
+
+
+
+
 
 
   pure ()
@@ -175,36 +237,43 @@ unsafe def liftRhsTactic : Tactic
 
 
 
-
-example (x y : Polynomial ℚ) : (Polynomial.C 2)+x^2*y = y := by
-  -- ((x0)^2 * x1)
-  lift_lhs (Polynomial.C : RingHom ℚ (Polynomial ℚ)) [x,y]
-  sorry
--- example (x y : ℚ) : Ideal.span {x} = Ideal.span {y} := by
---   -- ideal(x1)
---   lift_rhs (RingHom.id ℚ) [x,y]
-
-
 set_option trace.Meta.Tactic.data_synth false
 
 example (x y : ℚ) : x^2*y ∈ Ideal.span {x,y}  := by
-  lift_rhs (RingHom.id ℚ) [x,y]
-  sorry
-
--- example (x y : ℚ) : x^2*y+(RingHom.id ℚ 1) ∈ Ideal.span {x,y}  := by
---   lift_rhs (RingHom.id ℚ) [x,y]
+  lean_m2 (RingHom.id ℚ) [x,y]
 
 
-example (x y : ℚ) : x^2*y ∈ Ideal.span {x}  := by
-  -- lift_rhs (RingHom.id ℚ) [x,y]
-  refine Ideal.mem_span_singleton'.mpr ?_
-  use x*y
+
+example (x y z: ℚ) : x^2+y ∈ Ideal.span {x^2,y}  := by
+  lean_m2 (RingHom.id ℚ) [x,y,z]
+
+
+
+
+
+
+
+
+
+
+
+
+example (x y z : ℚ) : x^2*y+y*x ∈ Ideal.span {x, y, z}  := by
+  lean_m2 (RingHom.id ℚ) [x,y,z]
+
+
+
+example (x y z : ℚ) : x^2*y+y*x ∈ Ideal.span {x, y, z}  := by
+  simp[Ideal.mem_span_insert',Ideal.mem_span_singleton']
+  apply Exists.intro (-y)
+  apply Exists.intro (-x^2)
+  apply Exists.intro (0)
   ring
 
 
+example (a b c d e f : ℚ) : a^3*c+a^2*b*d+(RingHom.id ℚ (-1))*a^2*e*f+a*d*e^2+(RingHom.id ℚ (-1))*a*c*d*f ∈ Ideal.span {a^2+b*c+(RingHom.id ℚ (-1))*d*e, a*b+c*d+(RingHom.id ℚ (-1))*e*f, a*c+b*d+(RingHom.id ℚ (-1))*f^2}  := by
+  lean_m2 (RingHom.id ℚ) [a,b,c,d,e,f]
 
-example (x y : ℚ) : x^2*y ∈ Ideal.span {x, y}  := by
-  -- lift_rhs (RingHom.id ℚ) [x,y]
-  refine Ideal.mem_span_pair.mpr ?_
-  use x*y; use 0
-  ring
+
+example (a b c d e f : ℚ) : a^4+a^2*b*c+(RingHom.id ℚ (-1))*a^2*d*e+a*b^3+b^2*c*d+(RingHom.id ℚ (-1))*b^2*e*f+a*c^3+b*c^2*d+(RingHom.id ℚ (-1))*c^2*f^2 ∈ Ideal.span {a^2+b*c+(RingHom.id ℚ (-1))*d*e, a*b+c*d+(RingHom.id ℚ (-1))*e*f, a*c+b*d+(RingHom.id ℚ (-1))*f^2}  := by
+  lean_m2 (RingHom.id ℚ) [a,b,c,d,e,f]
