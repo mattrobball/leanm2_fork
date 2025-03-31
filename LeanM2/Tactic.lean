@@ -158,8 +158,8 @@ unsafe def leanM2Tactic : Tactic
 
 
   let atoms' := parseExprList atoms
-  let cmd := s!"R=QQ{if atoms'.length == 0 then "" else s!"{List.range atoms'.length |>.map (fun i => s!"x{i}")}"}\nf={polynomial.toString}\nI={ideal.toString}\nG=groebnerBasis I\nf % G\nf//G"
-  logInfo s!"{cmd}"
+  let cmd := s!"R=QQ{if atoms'.length == 0 then "" else s!"{List.range atoms'.length |>.map (fun i => s!"x{i}")}"}\nf={polynomial.toString}\nI={ideal.toString}\nG=gb(I,ChangeMatrix=>true)\nf % G\n(getChangeMatrix G)*(f// groebnerBasis I)"
+  -- logInfo s!"{cmd}"
   let res? ← idealMemM2' cmd
   if res?.isNone then
     logError s!"Not in ideal"
@@ -170,10 +170,8 @@ unsafe def leanM2Tactic : Tactic
 
     let idealGenerators : Array (Expr ℚ) := ideal.generators.toArray
 
-    let mut mappedRes : Array (Expr ℚ × String) := Array.mkArray idealGenerators.size (Expr.lift 0, "0")
-    for (_, (coeff, idx)) in arr do
-      let exp := idealGenerators.get! idx
-      mappedRes := mappedRes.set! idx (exp, coeff)
+    let mut mappedRes : Array (Expr ℚ × String) := arr.mapIdx (fun idx coeff => (idealGenerators.get! idx, coeff))
+
     -- logInfo s!"{mappedRes}"
 
     let mappedRes'_opt : Array (Expr ℚ × Option (Expr ℚ)) := mappedRes.map (fun (a,b) =>
@@ -237,15 +235,22 @@ unsafe def leanM2Tactic : Tactic
 
 
 
+
 set_option trace.Meta.Tactic.data_synth false
+
+
+
+
 
 example (x y : ℚ) : x^2*y ∈ Ideal.span {x,y}  := by
   lean_m2 (RingHom.id ℚ) [x,y]
 
 
 
+
 example (x y z: ℚ) : x^2+y ∈ Ideal.span {x^2,y}  := by
   lean_m2 (RingHom.id ℚ) [x,y,z]
+
 
 
 

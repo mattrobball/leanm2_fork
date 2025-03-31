@@ -27,17 +27,7 @@ def idealMemM2(cmd):
             is_valid = True
         else:
             is_valid = False
-        # print(f"Is valid M2 output: {is_valid}")
-        grob = ""
-        for line in result.stdout.splitlines():
-            if line.strip().startswith("o4 ="):
-                grob = line.strip()[5:].strip()  # Extract everything after "o4 ="
-                break
-        else:
-            is_valid = False
-            grob = ""
-        # print(f"Extracted grob: {grob}")
-        # Extract construction if it exists
+
         construction = ""
         found_o6 = False
         for i, line in enumerate(result.stdout.splitlines()):
@@ -55,33 +45,18 @@ def idealMemM2(cmd):
         else:
             construction = construction.rstrip()  # Remove trailing newline
         # print(f"Extracted construction: {construction}")
-        ideal = cmd.splitlines()[2].replace("I=ideal(", "")[:-1].strip().split(",")
-        ideal = [
-            x.replace("(", "").replace(")", "").strip() for x in ideal if x.strip()
-        ]  # Clean up any empty strings
-        # print(f"Ideal generators: {ideal}")
+
         if is_valid:
 
-            better_grob = grob[1:-1].strip().split(" ")
+            # better_grob = grob[1:-1].strip().split(" ")
             better_constr = construction.strip().split("\n")
 
-            print(f"Better grob: {better_grob}")
-            print(f"Better construction: {better_constr}")
-            print(f"Ideal: {ideal}")
             paired = []
-            for i in range(len(ideal)):
+            for i in range(len(better_constr)):
 
-                # get idx of ideal generator corresponding to the curr grob elem
-                gidx = better_grob.index(ideal[i].strip())
-
-                # Extract the content between pipe symbols (e.g., get "x0^2" from "{1} | x0^2 |")
-                constr_part = re.search(r"\|\s*(.*?)\s*\|", better_constr[gidx])
-                constr_value = (
-                    constr_part.group(1) if constr_part else better_constr[gidx]
-                )
-                paired.append(
-                    {"grob": better_grob[gidx], "const": constr_value, "gen_idx": i}
-                )
+                constr_part = re.search(r"\|\s*(.*?)\s*\|", better_constr[i])
+                constr_value = constr_part.group(1) if constr_part else better_constr[i]
+                paired.append(constr_value)
             # for i in range(len(better_grob)):
 
             #     # get idx of ideal generator corresponding to the curr grob elem

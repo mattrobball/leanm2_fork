@@ -18,7 +18,7 @@ def idealMemM2 (cmd: String) : IO Bool := do
   return output.stdout.trim == "True"
 
 
-def idealMemM2' (cmd: String) : IO (Option (Array (String × String× Nat))) := do
+def idealMemM2' (cmd: String) : IO (Option (Array (String))) := do
 
   let payload :Json := Json.str cmd
 
@@ -27,8 +27,8 @@ def idealMemM2' (cmd: String) : IO (Option (Array (String × String× Nat))) := 
     args := #["LeanM2/toM2.py", payload.compress]
     stdin := .piped
   }
-  IO.println s!"Output: [{output.stdout}]"
-  IO.println s!"Error: [{output.stderr}]"
+  -- IO.println s!"Output: [{output.stdout}]"
+  -- IO.println s!"Error: [{output.stderr}]"
 
   let m2Out := if output.stdout.trim == "" then none
     else
@@ -38,9 +38,7 @@ def idealMemM2' (cmd: String) : IO (Option (Array (String × String× Nat))) := 
           let arr := raw.getArr?.toOption.getD #[]
 
           let output := arr.map (fun item =>
-              (item.getObjValD "grob" |>.getStr?.toOption.getD "UH OH",
-              item.getObjValD "const" |>.getStr?.toOption.getD "UH OH",
-              item.getObjValD "gen_idx" |>.getNat?.toOption.getD 0)
+              item.getStr?.toOption.getD "UH OH"
             )
           some output
           )
