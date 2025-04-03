@@ -3,6 +3,7 @@ import LeanM2.parser
 import LeanM2.toM2
 import Lean.PrettyPrinter.Delaborator.Basic
 import Mathlib.Tactic.Use
+import Mathlib.Tactic.Polyrith
 
 syntax (name:=leanM2Stx) "lean_m2" term : tactic
 
@@ -212,14 +213,15 @@ unsafe def leanM2Tactic : Tactic
 
     Mathlib.Tactic.runUse false (← Mathlib.Tactic.mkUseDischarger none) (mappedRes'''.toList)
 
-    evalTactic (← `(tactic| simp))
+    -- evalTactic (← `(tactic| simp))
 
     -- Check if there are any goals left, and run ring if needed
     let gs ← getGoals
     if !gs.isEmpty then
       evalTactic (← `(tactic| ring))
-
-
+    let gs ← getGoals
+    if !gs.isEmpty then
+      evalTactic (← `(tactic| simp))
 
 
 
@@ -242,7 +244,12 @@ set_option trace.Meta.Tactic.data_synth false
 
 
 
-example (x y : ℚ) : x^2*y ∈ Ideal.span {x,y}  := by
+example (x y : ℚ) : x^2+y^2 ∈ Ideal.span {x,y}  := by
+  lean_m2 (RingHom.id ℚ) [x,y]
+
+
+
+example (x y : ℚ) : x^3+y^3 ∈ Ideal.span {x+y}  := by
   lean_m2 (RingHom.id ℚ) [x,y]
 
 
@@ -252,33 +259,43 @@ example (x y z: ℚ) : x^2+y ∈ Ideal.span {x^2,y}  := by
   lean_m2 (RingHom.id ℚ) [x,y,z]
 
 
-
-
-
-
-
-
-
-
-
-
-
 example (x y z : ℚ) : x^2*y+y*x ∈ Ideal.span {x, y, z}  := by
   lean_m2 (RingHom.id ℚ) [x,y,z]
 
 
 
-example (x y z : ℚ) : x^2*y+y*x ∈ Ideal.span {x, y, z}  := by
-  simp[Ideal.mem_span_insert',Ideal.mem_span_singleton']
-  apply Exists.intro (-y)
-  apply Exists.intro (-x^2)
-  apply Exists.intro (0)
-  ring
 
-
-example (a b c d e f : ℚ) : a^3*c+a^2*b*d+(RingHom.id ℚ (-1))*a^2*e*f+a*d*e^2+(RingHom.id ℚ (-1))*a*c*d*f ∈ Ideal.span {a^2+b*c+(RingHom.id ℚ (-1))*d*e, a*b+c*d+(RingHom.id ℚ (-1))*e*f, a*c+b*d+(RingHom.id ℚ (-1))*f^2}  := by
+example (a b c d e f : ℚ) : a^3*c+a^2*b*d-a^2*e*f+a*d*e^2-a*c*d*f
+  ∈ Ideal.span {a^2+b*c-d*e, a*b+c*d-e*f, a*c+b*d-f^2}  := by
   lean_m2 (RingHom.id ℚ) [a,b,c,d,e,f]
 
 
-example (a b c d e f : ℚ) : a^4+a^2*b*c+(RingHom.id ℚ (-1))*a^2*d*e+a*b^3+b^2*c*d+(RingHom.id ℚ (-1))*b^2*e*f+a*c^3+b*c^2*d+(RingHom.id ℚ (-1))*c^2*f^2 ∈ Ideal.span {a^2+b*c+(RingHom.id ℚ (-1))*d*e, a*b+c*d+(RingHom.id ℚ (-1))*e*f, a*c+b*d+(RingHom.id ℚ (-1))*f^2}  := by
+example (a b c d e f : ℚ) : a^4+a^2*b*c-a^2*d*e+a*b^3+b^2*c*d-b^2*e*f+a*c^3+b*c^2*d-c^2*f^2
+  ∈ Ideal.span {a^2+b*c-d*e, a*b+c*d-e*f, a*c+b*d-f^2}  := by
   lean_m2 (RingHom.id ℚ) [a,b,c,d,e,f]
+
+
+example (x y : ℚ) (h : x+y = 0) : x^3 + y^3 = 0 := by
+  have sufficient : x^3+y^3 ∈ Ideal.span {x+y} := by
+    lean_m2 (RingHom.id ℚ) [x,y]
+  apply Ideal.mem_span_singleton'.1 at sufficient
+  simp [mul_zero,h] at sufficient
+  linarith
+
+
+example (a b c d e f : ℚ) (h : b * c = e * f) : a * b * c * d = a * e * f * d := by
+  polyrith
+
+example (a b c d e f : ℚ) : a*b*c*d - a*e*f*d ∈ Ideal.span {b*c-e*f} := by
+  lean_m2 (RingHom.id ℚ) [a,b,c,d,e,f]
+
+
+
+
+
+example (a b c d e f : ℚ) (h : b * c = e * f) : a * b * c * d = a * e * f * d := by
+  have sufficient : a*b*c*d - a*e*f*d ∈ Ideal.span {b*c-e*f} := by
+    lean_m2 (RingHom.id ℚ) [a,b,c,d,e,f]
+  apply Ideal.mem_span_singleton'.1 at sufficient
+  simp [mul_zero,h] at sufficient
+  linarith

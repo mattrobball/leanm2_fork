@@ -116,12 +116,6 @@ instance : Unrepr ℚ where
     | some q => pure q
     | none => fail s!"Could not parse '{s}' as a rational number"
 
-
-def nextCharSatisfies (p : Char → Bool) : Parser Bool := do
-  match ← peek? with
-  | some c => pure (p c)
-  | none => pure false
-
 mutual
   partial def parseExpr : Parser (Expr ℚ) := do
     let res ← parseTerm
@@ -140,7 +134,6 @@ mutual
       ws
       let rhs ← parseTerm
       parseSumRest (Expr.add lhs (Expr.mul (Expr.lift (-1)) rhs)))
-
     <|>
     pure lhs
 
@@ -155,16 +148,6 @@ mutual
       ws
       let rhs ← parseFactor
       parseProductRest (Expr.mul lhs rhs))
-    <|>
-    (do -- Implicit multiplication
-      -- No operator between factors, but check if next char is an operator first
-      if ← nextCharSatisfies (fun c => c != '+' && c != '-') then
-        attempt (do
-          let rhs ← parseFactor
-          parseProductRest (Expr.mul lhs rhs))
-        <|> pure lhs
-      else
-        pure lhs)
     <|>
     pure lhs
 
@@ -200,7 +183,6 @@ mutual
     pure base
 end
 
-
 def ws : Parser Unit := do
   let _ ← many (satisfy Char.isWhitespace)
 
@@ -208,11 +190,10 @@ def parsePolynomial (s : String) : Except String (Expr ℚ) :=
   parseString parseExpr s
 
 open IO
-
 #eval parsePolynomial "x1^2 + 2*x1 + 3/4" |>.toOption|>.get!
 #eval parsePolynomial "((x1 + x2)^2)^3" |>.toOption|>.get!
 #eval parsePolynomial "3.5*x1 + 2*x2^3"|>.toOption|>.get!
-#eval parsePolynomial "x0-2"|>.toOption|>.get!
-#eval parsePolynomial "x0^2-x0x1+x1^2"|>.toOption|>.get!
+#eval parsePolynomial "x0^2"|>.toOption|>.get!
+#eval parsePolynomial "x0-x1"|>.toOption|>.get!
 
 end Parser

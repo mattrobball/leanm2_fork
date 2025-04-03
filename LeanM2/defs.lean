@@ -2,16 +2,19 @@ import SciLean
 
 import Lean.Data.Json.Basic
 import Mathlib.Data.FP.Basic
-
+-- import LeanM2.M2Real
 open Lean
 
 
-inductive Expr (R : Type) [Ring R]
+inductive Expr (R : Type) --[Ring R]
   | lift (r : R)
   | add (x y : Expr R)
   | mul (x y : Expr R)
   | pow (x : Expr R) (n : ℕ)
   | atom (i : ℕ)
+
+
+-- #check Expr M2Real
 
 instance [Ring R] : Inhabited (Expr R) where
   default := .lift 0
@@ -30,7 +33,7 @@ structure LiftExpr {R S} [Ring R]  [Ring S]  (f : RingHom R S) (atoms : List S) 
 
 variable {R} [Ring R] {S} [Ring S] (atoms : List S) (f : RingHom R S)
 @[data_synth]
-theorem lift_lift (r : R) :
+theorem lift_lift (r : R)  :
     LiftExpr f atoms (f r) (.lift r) where
   to_ring := by simp[Expr.toRing]
 
@@ -43,6 +46,19 @@ theorem lift_mul (x y : S) (hx : LiftExpr f atoms x xe) (hy : LiftExpr f atoms y
 theorem lift_add (x y : S) (hx : LiftExpr f atoms x xe) (hy : LiftExpr f atoms y ye) :
     LiftExpr f atoms (x + y) (.add xe ye) where
   to_ring := by simp[Expr.toRing,hx.to_ring,hy.to_ring]
+
+@[data_synth]
+theorem lift_sub (x y : S) (hx : LiftExpr f atoms x xe) (hy : LiftExpr f atoms y ye) :
+    LiftExpr f atoms (x - y) (.add xe (.mul (.lift (-1 : R)) ye)) where
+  to_ring := by
+    simp[Expr.toRing,hx.to_ring,hy.to_ring,Mathlib.Tactic.RingNF.add_neg x y]
+
+@[data_synth]
+theorem lift_neg (x : S) (hx : LiftExpr f atoms x xe) :
+    LiftExpr f atoms (-x) (.mul (.lift (-1 : R)) xe) where
+  to_ring := by
+    simp[Expr.toRing,hx.to_ring,Mathlib.Tactic.RingNF.add_neg x]
+
 
 @[data_synth]
 theorem lift_pow (x : S) (n : ℕ) (hx : LiftExpr f atoms x xe) :
@@ -192,5 +208,5 @@ noncomputable def lift : RingHom ℚ (Polynomial ℚ):= Polynomial.C
 #check LiftIdExpr lift [X] (Ideal.span {X^2}) _ rewrite_by data_synth
 
 
-#eval exprToString lift [X] (X^2)
+#eval exprToString lift [X] (lift 2)
 #eval IdExprToString [X] lift (Ideal.span {X^2})
