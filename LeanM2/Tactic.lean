@@ -1,9 +1,12 @@
 import LeanM2.defs
 import LeanM2.parser
 import LeanM2.toM2
+import LeanM2.M2Type
 import Lean.PrettyPrinter.Delaborator.Basic
 import Mathlib.Tactic.Use
 import Mathlib.Tactic.Polyrith
+import LeanM2.Expr2Expr
+
 
 syntax (name:=leanM2Stx) "lean_m2" term : tactic
 
@@ -47,6 +50,11 @@ partial def parseExprList (data : Lean.Expr) (acc : List Lean.Expr := []) : List
   | none => acc.reverse
 
 open Qq Rat in
+
+class ToLeanExpr (α : Type u) where
+  toLeanExpr : α → Lean.Expr
+
+
 def Expr.QtoLeanExpr {S: Q(Type)} {hS:Q(Ring $S)}  (f : Q(RingHom ℚ $S)) (atoms : List Q($S)) (e : Expr ℚ)  : MetaM Lean.Expr := do
 
   let output := match e with
@@ -285,11 +293,6 @@ example (x y : ℚ) (h : x+y = 0) : x^3 + y^3 = 0 := by
 
 example (a b c d e f : ℚ) (h : b * c = e * f) : a * b * c * d = a * e * f * d := by
   polyrith
-
-example (a b c d e f : ℚ) : a*b*c*d - a*e*f*d ∈ Ideal.span {b*c-e*f} := by
-  lean_m2 (RingHom.id ℚ) [a,b,c,d,e,f]
-
-
 
 
 

@@ -2,40 +2,45 @@ import SciLean
 
 import Lean.Data.Json.Basic
 import Mathlib.Data.FP.Basic
--- import LeanM2.M2Real
+import LeanM2.M2Type
 open Lean
 
+open RealM2
 
-inductive Expr (R : Type) --[Ring R]
+inductive Expr (R : Type)
   | lift (r : R)
   | add (x y : Expr R)
+  | sub (x y : Expr R)
   | mul (x y : Expr R)
+  | zero
+  | one
   | pow (x : Expr R) (n : ℕ)
   | atom (i : ℕ)
+deriving Inhabited, Repr
 
 
--- #check Expr M2Real
-
-instance [Ring R] : Inhabited (Expr R) where
-  default := .lift 0
-
-def Expr.toRing {R S: Type} [Ring R]  [Ring S]  (f : RingHom R S) (atoms : List S) (e : Expr R)  : S :=
+def Expr.toRing {R S M2R: Type} [M2Type R M2R] [Ring S]  (f : R → S) (atoms : List S) (e : Expr M2R)  : S :=
   match e with
-  | .lift r => f r
+  | .lift r => f (M2Type.toLean r)
   | .add x y => x.toRing f atoms + y.toRing f atoms
+  | .sub x y => x.toRing f atoms - y.toRing f atoms
   | .mul x y => x.toRing f atoms * y.toRing f atoms
+  | .zero => (0 : S)
+  | .one => (1 : S)
   | .pow x n => (x.toRing f atoms)^n
   | .atom i => atoms.getD i 0
 
 @[data_synth out e]
-structure LiftExpr {R S} [Ring R]  [Ring S]  (f : RingHom R S) (atoms : List S) (x : S) (e : Expr R) : Prop where
+structure LiftExpr {R S M2R} [M2Type R M2R] [Ring S] (f : R→ S) (atoms : List S) (x : S) (e : Expr M2R) : Prop where
   to_ring : e.toRing f atoms = x
 
-variable {R} [Ring R] {S} [Ring S] (atoms : List S) (f : RingHom R S)
+variable {R} {S} [M2Type R M2R] [Ring S] (atoms : List S) (f : R → S)
+
 @[data_synth]
-theorem lift_lift (r : R)  :
-    LiftExpr f atoms (f r) (.lift r) where
-  to_ring := by simp[Expr.toRing]
+theorem lift_lift (r : R)  (hr : LiftM2 r xr):
+    LiftExpr f atoms (f r) (.lift xr) where
+  to_ring := by
+    simp[Expr.toRing, hr.to_lean]
 
 @[data_synth]
 theorem lift_mul (x y : S) (hx : LiftExpr f atoms x xe) (hy : LiftExpr f atoms y ye) :
@@ -49,16 +54,25 @@ theorem lift_add (x y : S) (hx : LiftExpr f atoms x xe) (hy : LiftExpr f atoms y
 
 @[data_synth]
 theorem lift_sub (x y : S) (hx : LiftExpr f atoms x xe) (hy : LiftExpr f atoms y ye) :
-    LiftExpr f atoms (x - y) (.add xe (.mul (.lift (-1 : R)) ye)) where
+    LiftExpr f atoms (x - y) (.sub xe ye) where
   to_ring := by
     simp[Expr.toRing,hx.to_ring,hy.to_ring,Mathlib.Tactic.RingNF.add_neg x y]
 
 @[data_synth]
 theorem lift_neg (x : S) (hx : LiftExpr f atoms x xe) :
-    LiftExpr f atoms (-x) (.mul (.lift (-1 : R)) xe) where
+    LiftExpr f atoms (-x) (.sub .zero xe) where
   to_ring := by
     simp[Expr.toRing,hx.to_ring,Mathlib.Tactic.RingNF.add_neg x]
 
+@[data_synth]
+theorem lift_zero :
+    LiftExpr f atoms (0 : S) (.zero) where
+  to_ring := by simp[Expr.toRing]
+
+@[data_synth]
+theorem lift_one :
+    LiftExpr f atoms (1 : S) (.one) where
+  to_ring := by simp[Expr.toRing]
 
 @[data_synth]
 theorem lift_pow (x : S) (n : ℕ) (hx : LiftExpr f atoms x xe) :
@@ -85,41 +99,70 @@ theorem lift_atom (x : S) {n} (hx : IsAtomExpr atoms x n) :
     LiftExpr f atoms x (.atom n) where
   to_ring := by simp_all[Expr.toRing,hx.1,hx.2]
 
-def Expr.toString {R} [Ring R]  [ToString R] (e : Expr R) : String :=
+def Expr.toString {R} [ToString R] (e : Expr R) : String :=
   match e with
   | .lift r => s!"{r}"
   | .pow x n => s!"({x.toString})^{n}"
   | .add x y => s!"({x.toString} + {y.toString})"
+  | .sub x y =>
+    if x.toString == y.toString then
+      s!"0"
+    else
+      s!"({x.toString} - {y.toString})"
   | .mul x y => s!"({x.toString} * {y.toString})"
   | .atom i => s!"x{i}"
+  | .zero => s!"0"
+  | .one => s!"1"
 
 
-instance {R} [Ring R] [ToString R] : ToString (Expr R) where
+
+
+-- class ToM2 (α : Type u) where
+--   toM2 (x : α) {ex} (hx : LiftM2 x ex := by data_synth) : M2
+
+
+
+
+
+instance {R}  [ToString R] : ToString (Expr R) where
   toString := Expr.toString
 
+-- def partialToString (x : ℝ)  {ex} (hx : LiftM2Real x ex := by data_synth) : String :=
+--   toString ex
 
-def toExpr {R S} [Ring R]  [Ring S]  (f : RingHom R S) (atoms : List S) (x : S) {ex} (hx : LiftExpr f atoms x ex := by data_synth) :
-  Expr R := ex
 
-def exprToString {R S} [Ring R] [ToString R]  [Ring S]  (f : RingHom R S) (atoms : List S) (x : S) {ex} (hx : LiftExpr f atoms x ex := by data_synth) :
+
+
+
+
+def toExpr {R S M2R} [M2Type R M2R] [Ring S]  (f : R→  S) (atoms : List S) (x : S) {ex} (hx : LiftExpr f atoms x ex := by data_synth) :
+  Expr M2R := ex
+
+def exprToString {R S M2R} [ToString M2R] [M2Type R M2R] [Ring S]  (f : R→  S) (atoms : List S) (x : S) {ex} (hx : LiftExpr f atoms x ex := by data_synth) :
   String := ex.toString
 
+-- def exprToString {R S} [ToString R]  [Ring S]  (f : R → S) (atoms : List S) (x : S) {ex} (hx : LiftExpr f atoms x ex := by data_synth) :
+--   String := ex.toString
+
+-- def partialExprToString {R S} [Ring S]  (f : R → S) (atoms : List S) (x : S) {ex} (hx : LiftExpr f atoms x ex := by data_synth) (hx : LiftM2Real ex _ := by data_synth):
+--   String := ex.toString
 
 
 
 
 
-structure IdExpr (R : Type) [Ring R]  where
+
+structure IdExpr (R : Type)  where
   generators : List (Expr R)
 
 instance : Inhabited (IdExpr R) where
   default := ⟨[]⟩
 
-def IdExpr.toIdeal {R S: Type} [Ring R]  [Ring S]  [DecidableEq S] (f : RingHom R S) (atoms : List S) (I : IdExpr R)  : Ideal S :=
+def IdExpr.toIdeal {R S M2R: Type} [Ring S] [M2Type R M2R] [DecidableEq S] (f : R → S) (atoms : List S) (I : IdExpr M2R)  : Ideal S :=
   Ideal.span ((I.generators.map (fun e => e.toRing f atoms)).toFinset.toSet)
 
 @[data_synth out eI]
-structure LiftIdExpr {R S} [Ring R]  [Ring S]  [DecidableEq S] (f : RingHom R S) (atoms : List S) (I : Ideal S) (eI : IdExpr R) : Prop where
+structure LiftIdExpr {R S M2R} [Ring S] [M2Type R M2R] [DecidableEq S] (f : R → S) (atoms : List S) (I : Ideal S) (eI : IdExpr M2R) : Prop where
   to_ideal : eI.toIdeal f atoms = I
 
 variable [DecidableEq S]
@@ -127,7 +170,7 @@ variable [DecidableEq S]
 
 
 @[data_synth out generators]
-structure IsIdExpr (I : Ideal S) (generators : List (Expr R)) : Prop where
+structure IsIdExpr (I : Ideal S) (generators : List (Expr M2R)) : Prop where
   eq : I = Ideal.span (generators.map (fun g => g.toRing f atoms)).toFinset
 
 
@@ -167,13 +210,13 @@ theorem lift_ideal (I : Ideal S) {generators} (hI : IsIdExpr atoms f I generator
 
 
 
-def IdExpr.toString [ToString R] (I : IdExpr R) : String :=
+def IdExpr.toString [ToString M2R] (I : IdExpr M2R) : String :=
   s!"ideal({",".intercalate (I.generators.map (fun e => e.toString))})"
 
 def toIdExpr (I : Ideal S) {eI} (hx : LiftIdExpr f atoms I eI := by data_synth) :
-  IdExpr R := eI
+  IdExpr M2R := eI
 
-def IdExprToString [ToString R] (I : Ideal S) {eI} (hx : LiftIdExpr f atoms I eI := by data_synth) :
+def IdExprToString [ToString M2R] (I : Ideal S) {eI} (hx : LiftIdExpr f atoms I eI := by data_synth) :
   String := eI.toString
 
 
@@ -196,6 +239,61 @@ set_option trace.Meta.Tactic.data_synth true
 #check (IsIdExpr atoms' f' (Ideal.span {f' (1:ℚ), f' (2:ℚ)}) _) rewrite_by data_synth
 
 #check LiftIdExpr f' atoms' (Ideal.span {f' (1:ℚ), f' (2:ℚ)}) _ rewrite_by data_synth
+
+#eval toExpr f' atoms' (2:ℚ) -- this should work
+
+#check LiftExpr f' atoms' (f' (2:ℚ)) _ rewrite_by data_synth
+
+#check LiftM2 (2:ℚ) _ rewrite_by data_synth -- this should work, since 2 is in the ideal
+
+def atoms'' :List ℝ := []
+
+noncomputable def f'' := RingHom.id ℝ
+
+#check (IsIdExpr atoms'' f'' (Ideal.span {}) _) rewrite_by data_synth
+
+set_option trace.Meta.Tactic.data_synth true
+
+#eval partialToString (Real.sqrt (1:ℚ):ℝ)
+
+#eval toExpr f'' atoms'' (f'' (Real.sqrt (2:ℚ)) * f'' (1:ℚ)) -- this should work
+
+#check LiftExpr f'' atoms'' (f'' (1:ℚ)) _ rewrite_by data_synth
+
+#check (IsIdExpr atoms'' f'' (Ideal.span {f'' (1 : ℚ)}) _) rewrite_by data_synth
+
+#check (IsIdExpr atoms'' f'' (Ideal.span {f'' (1: ℚ) , f'' (2 : ℚ)}) _) rewrite_by data_synth
+
+#check LiftIdExpr f'' atoms'' (Ideal.span {f'' (1:ℚ), f'' (2:ℚ)}) _ rewrite_by data_synth
+
+#eval exprToString f'' atoms'' (f'' (2:ℚ) + f'' (Real.sqrt ((1 : ℚ))))
+
+
+
+
+
+def atoms''' :List ℂ := []
+
+noncomputable def f''' := RingHom.id ℂ
+
+#check (IsIdExpr atoms''' f''' (Ideal.span {}) _) rewrite_by data_synth
+
+set_option trace.Meta.Tactic.data_synth true
+
+#eval partialToString (((1:ℚ):ℂ)^(1/2))
+
+#eval toExpr f''' atoms''' (f''' ((2:ℚ)^(1/2)) * f''' (1:ℚ)) -- this should work
+
+#check LiftExpr f''' atoms''' (f''' (1:ℚ)) _ rewrite_by data_synth
+
+#check (IsIdExpr atoms''' f''' (Ideal.span {f''' (1 : ℚ)}) _) rewrite_by data_synth
+
+#check (IsIdExpr atoms''' f''' (Ideal.span {f''' (1: ℚ) , f''' (2 : ℚ)}) _) rewrite_by data_synth
+
+#check LiftIdExpr f''' atoms''' (Ideal.span {f''' (1:ℚ), f''' (2:ℚ)}) _ rewrite_by data_synth
+
+#eval exprToString f''' atoms''' (f''' (2:ℚ) + f''' ((1 : ℚ)^(1/2)))
+
 
 
 
