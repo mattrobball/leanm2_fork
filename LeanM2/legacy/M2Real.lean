@@ -138,6 +138,8 @@ theorem lift_div (x y : ℝ) (hx : LiftM2 x xe) (hy : LiftM2 y ye):
 
 
 
+
+
 variable {R M2R} [M2Type R M2R] [ToString M2R]
 @[inline]
 def partialToString (x : R) {m : M2R} (hx : LiftM2 x m := by data_synth) : String := toString m

@@ -26,8 +26,11 @@ instance : M2Type ℚ ℚ where
 
 alias M2Rat := Rat
 
-end RatM2
+instance : ToString M2Rat where
+  toString r := @toString ℚ instToStringRat r
 
+
+end RatM2
 
 namespace RealM2
 
