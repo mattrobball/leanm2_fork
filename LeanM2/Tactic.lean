@@ -113,6 +113,12 @@ def getOutputRing (i : Lean.Expr) : Option Lean.Expr :=
     outputRing
   | none => none
 
+def getM2R {M2R} (R : Type) [M2Type R M2R] : Type :=
+  M2R
+
+#reduce (types := true) getM2R ℝ
+
+
 
 open Lean Meta Elab Tactic Conv Qq RatM2 in
 @[tactic leanM2Stx]
@@ -122,6 +128,22 @@ unsafe def leanM2Tactic : Tactic
   let lift ← elabTerm lift none
   let (ideal, elem) ← getMem
   let (_,_,i'') := ideal
+
+  let inputM2Type : Lean.Expr × Lean.Expr ← match lift with
+    | .lam _ type _ _ => do
+        let M2T ← mkFreshExprMVar q(Type)
+        let instType ← mkAppM ``M2Type #[type, M2T]
+        let _ ← synthInstance instType
+        logInfo M2T
+        pure (type, M2T)
+    | _ =>
+      logError "failed to infer the input ring from the provided lift expression"
+      default
+
+  let (inputRing, inputM2Type) := inputM2Type
+
+
+
   let outputRing ← match getOutputRing i'' with
     | none => do
       logError "failed to find output ring from ideal expression"
@@ -258,7 +280,10 @@ example (x y : ℚ) : x^2+y^2 ∈ Ideal.span {x,y}  := by
 
 
 example (x y : ℚ) : x^3+y^3 ∈ Ideal.span {x+y}  := by
-  lean_m2 (RingHom.id ℚ) [x,y]
+  lean_m2 (fun (x:ℚ) => x) [x,y]
+
+example (x y : Polynomial ℚ) : x^3+y^3 ∈ Ideal.span {x+y}  := by
+  lean_m2 (fun (t:ℚ) => Polynomial.C t) [x,y]
 
 
 

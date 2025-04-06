@@ -138,6 +138,8 @@ instance {R}  [ToString R] : ToString (Expr R) where
 def toExpr {R S M2R} [M2Type R M2R] [Ring S]  (f : R→  S) (atoms : List S) (x : S) {ex} (hx : LiftExpr f atoms x ex := by data_synth) :
   Expr M2R := ex
 
+
+
 def exprToString {R S M2R} [ToString M2R] [M2Type R M2R] [Ring S]  (f : R→  S) (atoms : List S) (x : S) {ex} (hx : LiftExpr f atoms x ex := by data_synth) :
   String := ex.toString
 
