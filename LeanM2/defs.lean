@@ -215,6 +215,9 @@ theorem lift_ideal (I : Ideal S) {generators} (hI : IsIdExpr atoms f I generator
 def IdExpr.toString [ToString M2R] (I : IdExpr M2R) : String :=
   s!"ideal({",".intercalate (I.generators.map (fun e => e.toString))})"
 
+instance [ToString M2R] : ToString (IdExpr M2R) where
+  toString I := I.toString
+
 def toIdExpr (I : Ideal S) {eI} (hx : LiftIdExpr f atoms I eI := by data_synth) :
   IdExpr M2R := eI
 

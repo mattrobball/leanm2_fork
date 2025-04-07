@@ -49,6 +49,31 @@ partial def parseExprList (data : Lean.Expr) (acc : List Lean.Expr := []) : List
       parseExprList rest (arg :: acc)
   | none => acc.reverse
 
+
+partial def parseExprIdealSpan' (data : Lean.Expr) (acc : List Lean.Expr := []) : List Lean.Expr :=
+  let isEmpty := data.app2? ``EmptyCollection.emptyCollection
+  if isEmpty.isSome then
+    acc
+  else
+    let isSingle := data.app4? ``Singleton.singleton
+    if isSingle.isSome then
+      let (_, _, _, obj) := isSingle.get!
+      obj :: acc
+    else
+      let data' := data.app5? ``Insert.insert
+      if data'.isSome then
+        let (_, _, _, obj, rest) := data'.get!
+        parseExprIdealSpan' rest (obj :: acc)
+      else
+        []
+
+partial def parseExprIdealSpan (data : Lean.Expr) : List Lean.Expr :=
+  let data' := data.app3? ``Ideal.span
+  match data' with
+  | some (_, _, body) =>
+      parseExprIdealSpan' body |>.reverse
+  | none => []
+
 open Qq Rat
 
 
@@ -62,7 +87,7 @@ def M2Rat.toLeanExpr : M2Rat → Lean.Expr → MetaM Lean.Expr := fun r => fun f
   let num :ℤ := r.num
   let denom :ℤ := r.den
   let r' := q($num /. $denom)
-  mkAppM ``DFunLike.coe #[f, r']
+  mkAppM' f #[r']-- ``DFunLike.coe #[f, r']
 
 
 instance : ToLeanExpr M2Rat where
@@ -75,6 +100,7 @@ open Qq Rat in
 def Expr.toLeanExpr' (S : Lean.Expr) (f : Lean.Expr) (atoms : List Lean.Expr) {α} [ToLeanExpr α] (e : Expr α)  : MetaM Lean.Expr := do
   let output := match e with
   | .lift r => do
+    logInfo m!"lifting fn {f}"
     ToLeanExpr.toLeanExpr r f
   | .add x y => do
     let fst ← x.toLeanExpr' S f atoms
@@ -105,6 +131,8 @@ def Expr.toLeanExpr' (S : Lean.Expr) (f : Lean.Expr) (atoms : List Lean.Expr) {�
   output
 
 
+
+
 def getOutputRing (i : Lean.Expr) : Option Lean.Expr :=
   let output := i.app3? (`Ideal.span)
   match output with
@@ -119,7 +147,6 @@ def getM2R {M2R} (R : Type) [M2Type R M2R] : Type :=
 #reduce (types := true) getM2R ℝ
 
 
-
 open Lean Meta Elab Tactic Conv Qq RatM2 in
 @[tactic leanM2Stx]
 unsafe def leanM2Tactic : Tactic
@@ -128,19 +155,26 @@ unsafe def leanM2Tactic : Tactic
   let lift ← elabTerm lift none
   let (ideal, elem) ← getMem
   let (_,_,i'') := ideal
+  -- logInfo m!"ideal: {parseExprIdealSpan i''}"
 
-  let inputM2Type : Lean.Expr × Lean.Expr ← match lift with
-    | .lam _ type _ _ => do
-        let M2T ← mkFreshExprMVar q(Type)
-        let instType ← mkAppM ``M2Type #[type, M2T]
-        let _ ← synthInstance instType
-        logInfo M2T
-        pure (type, M2T)
-    | _ =>
-      logError "failed to infer the input ring from the provided lift expression"
-      default
+  -- let inputM2Type : Lean.Expr × String ← match lift with
+  --   | .lam _ type _ _ => do
+  --       let M2T ← mkFreshExprMVar q(Type)
+  --       let instType ← mkAppM ``M2Type #[type, M2T]
+  --       let _ ← synthInstance instType
+  --       logInfo M2T
 
-  let (inputRing, inputM2Type) := inputM2Type
+
+  --       let repr ← mkAppOptM ``M2Type.repr #[type, M2T, none]
+  --       let repr' : String ← evalExpr (String) q(String) repr
+  --       logInfo repr'
+
+  --       pure (M2T, repr')
+  --   | _ =>
+  --     logError "failed to infer the input ring from the provided lift expression"
+  --     default
+
+  -- let (M2R, repr) := inputM2Type
 
 
 
@@ -151,8 +185,8 @@ unsafe def leanM2Tactic : Tactic
     | some or =>
       pure or
 
-  let mut polynomial : Expr M2Rat := default
-  let mut ideal : IdExpr M2Rat := default
+  let mut polynomial : String := default
+  let mut ideal : String := default
 
   -- elem
   let e ← mkAppM ``LiftExpr #[lift, atoms, elem]
@@ -168,11 +202,13 @@ unsafe def leanM2Tactic : Tactic
   checkNoFVars result (fun xs => m!"error: resulting expression contains fvars {xs}")
 
   try
-    let expr ← evalExpr (_root_.Expr M2Rat) q(_root_.Expr M2Rat) result
+    let strExpr ← mkAppM ``toString #[result]
+    let expr ← evalExpr (String) q(String) strExpr
     polynomial := expr
-    logInfo s!"{expr.toString}"
-  catch _ =>
-    throwError m!"invalid expression {result}"
+    logInfo s!"{expr}"
+  catch msg =>
+    logInfo m!"invalid expression {result}"
+    logError msg.toMessageData
 
 
   -- ideal
@@ -189,15 +225,15 @@ unsafe def leanM2Tactic : Tactic
 
 
   try
-
-    let expr ← evalExpr (_root_.IdExpr M2Rat) q(_root_.IdExpr M2Rat) result
+    let strExpr ← mkAppM ``toString #[result]
+    let expr ← evalExpr (String) q(String) strExpr
     ideal := expr
-  catch _ =>
-    throwError m!"invalid expression {result}"
-
+  catch msg =>
+    logInfo m!"invalid expression {result}"
+    logError msg.toMessageData
 
   let atoms' := parseExprList atoms
-  let cmd := s!"R=QQ{if atoms'.length == 0 then "" else s!"{List.range atoms'.length |>.map (fun i => s!"x{i}")}"}\nf={polynomial.toString}\nI={ideal.toString}\nG=gb(I,ChangeMatrix=>true)\nf % G\n(getChangeMatrix G)*(f// groebnerBasis I)"
+  let cmd := s!"R=QQ{if atoms'.length == 0 then "" else s!"{List.range atoms'.length |>.map (fun i => s!"x{i}")}"}\nf={polynomial}\nI={ideal}\nG=gb(I,ChangeMatrix=>true)\nf % G\n(getChangeMatrix G)*(f// groebnerBasis I)"
   -- logInfo s!"{cmd}"
   let res? ← idealMemM2' cmd
   if res?.isNone then
@@ -207,28 +243,31 @@ unsafe def leanM2Tactic : Tactic
     logInfo s!"{arr}"
 
 
-    let idealGenerators : Array (Expr M2Rat) := ideal.generators.toArray
+    let idealGenerators : Array (Lean.Expr) := parseExprIdealSpan i'' |>.toArray
 
-    let mut mappedRes : Array (Expr M2Rat × String) := arr.mapIdx (fun idx coeff => (idealGenerators.get! idx, coeff))
+    let mut mappedRes : Array (Lean.Expr × String) := arr.mapIdx (fun idx coeff => (idealGenerators.get! idx, coeff))
 
     logInfo s!"{mappedRes}"
 
-    let mappedRes'_opt : Array (Expr M2Rat × Option (Expr M2Rat)) := mappedRes.map (fun (a,b) =>
+    let mappedRes'_opt : Array (Lean.Expr × Option (Expr M2Rat)) := mappedRes.map (fun (a,b) =>
       let parsed := parsePolynomial M2Rat b |>.toOption
       (a, parsed)
     )
 
     if not (mappedRes'_opt.all (fun (_, b) => b.isSome)) then
-      logError s!"failed to parse polynomial coefficients: {mappedRes'_opt.filter (fun (_, b) => b.isNone)|>.map (fun (a,_) => a.toString)}"
+      logError m!"failed to parse polynomial coefficients: {mappedRes'_opt.filter (fun (_, b) => b.isNone)|>.map (fun (a,_) => a)}"
 
-    let mappedRes' : Array (Expr M2Rat × Expr M2Rat) := mappedRes'_opt.map (fun (a,b) => (a, b.get!))
-    logInfo s!"{" + ".intercalate <|  mappedRes'.toList.map (fun (a,b) => s!"({b.toString} * {a.toString})")}"
+    let mappedRes' : Array (Lean.Expr × Expr M2Rat) := mappedRes'_opt.map (fun (a,b) => (a, b.get!))
+    logInfo m!"{" + ".intercalate <|  mappedRes'.toList.map (fun (a,b) => s!"({b.toString} * {a})")}"
+    logInfo m!"mappedRes': {mappedRes'}"
 
     let mappedRes'' :Array (Lean.Expr × Lean.Expr) ←  mappedRes'.mapM (fun (a,b) => do
-      let a' ← a.toLeanExpr' outputRing lift atoms'
+      -- let a' ← a.toLeanExpr' outputRing lift atoms'
       let b' ← b.toLeanExpr' outputRing lift atoms'
-      pure (a', b')
+      pure (a, b')
     )
+
+    logInfo m!"mappedRes'': {mappedRes''}"
 
     let mappedRes''' : Array Term ←  mappedRes''.mapIdxM (fun i (_, coeff) => do
       let neg ← if i < mappedRes''.size - 1 then
@@ -271,10 +310,19 @@ unsafe def leanM2Tactic : Tactic
 set_option trace.Meta.Tactic.data_synth false
 
 
+example (x: ℚ) : x ∈ Ideal.span {x}  := by
+  lean_m2 (fun (t:ℚ) => t) [x]
 
-
+example (x y z: ℚ) : x^2+y^2 ∈ Ideal.span {x,y,z}  := by
+  lean_m2 (fun (t:ℚ) => t) [x,y,z]
 
 example (x y : ℚ) : x^2+y^2 ∈ Ideal.span {x,y}  := by
+  lean_m2 (fun (x:ℚ) => x) [x,y]
+
+example (x y : ℚ) : x^2+x*y^2 ∈ Ideal.span {x}  := by
+  lean_m2 (fun (x:ℚ) => x) [x,y]
+
+example (x y : ℚ) : x^2+y^2 ∈ Ideal.span {}  := by
   lean_m2 (fun (x:ℚ) => x) [x,y]
 
 

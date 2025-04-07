@@ -17,7 +17,11 @@ import Mathlib.Data.Nat.Digits
 open Std.Internal.Parsec Std.Internal.Parsec.String
 open Lean
 
-
+class parseableRepr (repr : String) where
+  R : Type
+  M2R : outParam Type
+  inst_M2Type : M2Type R M2R
+  parse : Parser M2R
 
 
 class Unrepr (α : Type) where
@@ -113,6 +117,12 @@ open RatM2 in
 instance : Unrepr M2Rat where
   parse := M2Rat.parse
 
+instance : parseableRepr "QQ" where
+  R := ℚ
+  M2R := M2Rat
+  inst_M2Type := inferInstance
+  parse := M2Rat.parse
+
 end RatM2
 
 namespace IntM2
@@ -127,6 +137,11 @@ def M2Int.parse : (Parser ℤ) := do
 instance : Unrepr M2Int where
   parse := M2Int.parse
 
+instance : parseableRepr "ZZ" where
+  R := ℤ
+  M2R := M2Int
+  inst_M2Type := inferInstance
+  parse := M2Int.parse
 
 end IntM2
 
@@ -135,41 +150,6 @@ open IntM2 in
 
 namespace RealM2
 open RatM2
--- mutual
---   partial def M2Real.parse : Parser M2Real := do
---     (do -- Parse pi
---       skipString "pi"
---       ws
---       pure M2Real.pi)
---     <|>
---     (do -- Parse sqrt function
---       skipString "sqrt("
---       ws
---       let x ← M2Real.parse
---       skipChar ')'
---       ws
---       pure (M2Real.sqrt x))
---     <|>
---     (do -- Parse log function
---       skipString "log("
---       ws
---       let x ← M2Real.parse
---       skipChar ')'
---       ws
---       pure (M2Real.log x))
---     <|>
---     (do -- Parse exp function
---       skipString "exp("
---       ws
---       let x ← M2Real.parse
---       skipChar ')'
---       ws
---       pure (M2Real.exp x))
---     <|>
---     (do -- Parse rational number
---       let q ← M2Rat.parse -- Use the Unrepr instance for ℚ
---       pure (M2Real.rat q))
--- end
 
 mutual
   partial def M2Real.parse : Parser M2Real := do
@@ -267,6 +247,13 @@ end
 
 
 instance : Unrepr M2Real where
+  parse := M2Real.parse
+
+noncomputable
+instance : parseableRepr "RR" where
+  R := ℝ
+  M2R := M2Real
+  inst_M2Type := inferInstance
   parse := M2Real.parse
 
 end RealM2
@@ -382,6 +369,14 @@ end
 instance : Unrepr M2Complex where
   parse := M2Complex.parse
 
+
+noncomputable
+instance : parseableRepr "CC" where
+  R := ℂ
+  M2R := M2Complex
+  inst_M2Type := inferInstance
+  parse := M2Complex.parse
+
 end ComplexM2
 
 open ComplexM2 in
@@ -473,11 +468,31 @@ mutual
 end
 
 
+
+
+
 def ws : Parser Unit := do
   let _ ← many (satisfy Char.isWhitespace)
 
 def parsePolynomial (target : Type) [Unrepr target] (s : String) : Except String (Expr target) :=
   parseString parseExpr s
+
+
+
+-- def parsePolynomial' {R S M2R} [mInst : M2Type R M2R] [uInst : Unrepr M2R] (s : String) (lift : R → S) (atoms : List S) : Except String (S) :=
+--   let output' := parseString (@parseExpr M2R uInst) s
+--   match output' with
+--   | .ok expr =>
+--     let r := exprToString lift atoms expr
+--     match String.toRat? r with
+--     | some q => .ok q
+--     | none =>
+--       -- fallback to just returning the expression itself
+--       .ok (lift (expr.to_lean : R))
+--   | .error msg =>
+--     .error msg
+
+
 
 open IO RatM2 IntM2 RealM2 ComplexM2
 def parsePolynomial' := parsePolynomial M2Real
