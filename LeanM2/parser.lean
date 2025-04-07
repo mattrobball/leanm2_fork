@@ -117,6 +117,9 @@ open RatM2 in
 instance : Unrepr M2Rat where
   parse := M2Rat.parse
 
+instance : Unrepr ℚ where
+  parse := M2Rat.parse
+
 instance : parseableRepr "QQ" where
   R := ℚ
   M2R := M2Rat
@@ -494,15 +497,15 @@ def parsePolynomial (target : Type) [Unrepr target] (s : String) : Except String
 
 
 
-open IO RatM2 IntM2 RealM2 ComplexM2
-def parsePolynomial' := parsePolynomial M2Real
-#eval parsePolynomial' "x1^2 + 2*x1 + 3/4" |>.toOption|>.get!
-#eval parsePolynomial' "((x1 + x2)^2)^3" |>.toOption|>.get!
-#eval parsePolynomial' "3.5*x1 + 2*x2^3"|>.toOption|>.get!
-#eval parsePolynomial' "x0-2"|>.toOption|>.get!
-#eval parsePolynomial' "x0^2-x0x1+x1^2"|>.toOption|>.get!
-#eval parsePolynomial' "(372)-2"|>.toOption|>.get!
-#eval parsePolynomial' "372-2"|>.toOption|>.get!
+-- open IO RatM2 IntM2 RealM2 ComplexM2
+-- def parsePolynomial' := parsePolynomial M2Real
+-- #eval parsePolynomial' "x1^2 + 2*x1 + 3/4" |>.toOption|>.get!
+-- #eval parsePolynomial' "((x1 + x2)^2)^3" |>.toOption|>.get!
+-- #eval parsePolynomial' "3.5*x1 + 2*x2^3"|>.toOption|>.get!
+-- #eval parsePolynomial' "x0-2"|>.toOption|>.get!
+-- #eval parsePolynomial' "x0^2-x0x1+x1^2"|>.toOption|>.get!
+-- #eval parsePolynomial' "(372)-2"|>.toOption|>.get!
+-- #eval parsePolynomial' "372-2"|>.toOption|>.get!
 
 
 

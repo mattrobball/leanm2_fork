@@ -93,8 +93,59 @@ def M2Rat.toLeanExpr : M2Rat → Lean.Expr → MetaM Lean.Expr := fun r => fun f
 instance : ToLeanExpr M2Rat where
   toLeanExpr := M2Rat.toLeanExpr
 
-end RatM2
 
+instance : ToLeanExpr ℚ where
+  toLeanExpr := M2Rat.toLeanExpr
+#check (1:ℝ)^(1:ℝ)
+end RatM2
+namespace RealM2
+open Qq in
+def M2Real.toLeanExpr : M2Real → Lean.Expr → MetaM Lean.Expr := fun r => fun f =>
+  match r with
+  | .rat r => do
+    let num :ℤ := r.num
+    let denom :ℤ := r.den
+    let r' := q($num /. $denom)
+    let coe_r' ← mkAppOptM ``Rat.cast #[q(ℝ), q(Real.instRatCast), r']
+    mkAppM' f #[coe_r']
+  | .sqrt r => do
+    let r' ← M2Real.toLeanExpr r f
+    mkAppM ``Real.sqrt #[r']
+  | .log r => do
+    let r' ← M2Real.toLeanExpr r f
+    mkAppM ``Real.log #[r']
+  | .exp r => do
+    let r' ← M2Real.toLeanExpr r f
+    mkAppM ``Real.exp #[r']
+  | .pi => do
+    mkAppM ``Real.pi #[]
+  | .add x y => do
+    let x' ← M2Real.toLeanExpr x f
+    let y' ← M2Real.toLeanExpr y f
+    mkAppM ``HAdd.hAdd #[x', y']
+  | .mul x y => do
+    let x' ← M2Real.toLeanExpr x f
+    let y' ← M2Real.toLeanExpr y f
+    mkAppM ``HMul.hMul #[x', y']
+  | .pow x y => do
+    let x' ← M2Real.toLeanExpr x f
+    let y' ← M2Real.toLeanExpr y f
+    mkAppM ``HPow.hPow #[x', y']
+  | .sub x y => do
+    let x' ← M2Real.toLeanExpr x f
+    let y' ← M2Real.toLeanExpr y f
+    mkAppM ``HSub.hSub #[x', y']
+  | .div x y => do
+    let x' ← M2Real.toLeanExpr x f
+    let y' ← M2Real.toLeanExpr y f
+    mkAppM ``HDiv.hDiv #[x', y']
+
+
+instance : ToLeanExpr M2Real where
+  toLeanExpr := M2Real.toLeanExpr
+
+
+end RealM2
 
 open Qq Rat in
 def Expr.toLeanExpr' (S : Lean.Expr) (f : Lean.Expr) (atoms : List Lean.Expr) {α} [ToLeanExpr α] (e : Expr α)  : MetaM Lean.Expr := do
@@ -130,6 +181,19 @@ def Expr.toLeanExpr' (S : Lean.Expr) (f : Lean.Expr) (atoms : List Lean.Expr) {�
 
   output
 
+open Qq in
+def parsePolynomial' (M2R : Type)
+[liftInst : ToLeanExpr M2R] [inst : Unrepr M2R] (s : String)
+: Option (Lean.Expr → Lean.Expr → List Lean.Expr → MetaM Lean.Expr) :=
+  let parsed := parseString (@parseExpr M2R inst) s
+  match parsed with
+  | Except.ok e => do
+
+    let e' := fun S f atoms => Expr.toLeanExpr' S f atoms e
+    some (e')
+
+  | Except.error _ =>
+    none
 
 
 
@@ -147,7 +211,8 @@ def getM2R {M2R} (R : Type) [M2Type R M2R] : Type :=
 #reduce (types := true) getM2R ℝ
 
 
-open Lean Meta Elab Tactic Conv Qq RatM2 in
+
+open Lean Meta Elab Tactic Conv Qq RatM2 RealM2 in
 @[tactic leanM2Stx]
 unsafe def leanM2Tactic : Tactic
 | `(tactic| lean_m2 $lift:term $atoms:term) => do
@@ -157,25 +222,22 @@ unsafe def leanM2Tactic : Tactic
   let (_,_,i'') := ideal
   -- logInfo m!"ideal: {parseExprIdealSpan i''}"
 
-  -- let inputM2Type : Lean.Expr × String ← match lift with
-  --   | .lam _ type _ _ => do
-  --       let M2T ← mkFreshExprMVar q(Type)
-  --       let instType ← mkAppM ``M2Type #[type, M2T]
-  --       let _ ← synthInstance instType
-  --       logInfo M2T
+  let inputM2Type : Lean.Expr ← match lift with
+    | .lam _ type _ _ => do
+        let M2T ← mkFreshExprMVar q(Type)
+        let instType ← mkAppM ``M2Type #[type, M2T]
+        let _ ← synthInstance instType
+        logInfo M2T
 
 
-  --       let repr ← mkAppOptM ``M2Type.repr #[type, M2T, none]
-  --       let repr' : String ← evalExpr (String) q(String) repr
-  --       logInfo repr'
+        pure (M2T)
+    | e =>
+      logError s!"failed to infer the input ring from the provided lift expression\n{e.dbgToString}"
+      default
 
-  --       pure (M2T, repr')
-  --   | _ =>
-  --     logError "failed to infer the input ring from the provided lift expression"
-  --     default
+  let M2R := inputM2Type
 
-  -- let (M2R, repr) := inputM2Type
-
+  logInfo m!"inputM2Type: {inputM2Type}"
 
 
   let outputRing ← match getOutputRing i'' with
@@ -249,28 +311,35 @@ unsafe def leanM2Tactic : Tactic
 
     logInfo s!"{mappedRes}"
 
-    let mappedRes'_opt : Array (Lean.Expr × Option (Expr M2Rat)) := mappedRes.map (fun (a,b) =>
-      let parsed := parsePolynomial M2Rat b |>.toOption
-      (a, parsed)
+    let mappedRes'_opt : Array (Lean.Expr × Option (Lean.Expr)) ← mappedRes.mapM (fun (a,b) => do
+      -- let parsed := parsePolynomial' M2Rat b
+      let parsedExpr ← mkAppOptM ``parsePolynomial' #[M2R,none,none, q($b)]
+      let parsed ← evalExpr (Option (Lean.Expr → Lean.Expr → List Lean.Expr → MetaM Lean.Expr)) q(Option (Lean.Expr → Lean.Expr → List Lean.Expr → MetaM Lean.Expr)) parsedExpr
+      let parsed' ← match parsed with
+        | some f => do
+          let output' ← f outputRing lift atoms'
+          pure (some output')
+        | none =>
+          pure none
+
+      pure (a, parsed')
     )
 
     if not (mappedRes'_opt.all (fun (_, b) => b.isSome)) then
       logError m!"failed to parse polynomial coefficients: {mappedRes'_opt.filter (fun (_, b) => b.isNone)|>.map (fun (a,_) => a)}"
 
-    let mappedRes' : Array (Lean.Expr × Expr M2Rat) := mappedRes'_opt.map (fun (a,b) => (a, b.get!))
-    logInfo m!"{" + ".intercalate <|  mappedRes'.toList.map (fun (a,b) => s!"({b.toString} * {a})")}"
+    let mappedRes' : Array (Lean.Expr × Lean.Expr) := mappedRes'_opt.map (fun (a,b) => (a, b.get!))
     logInfo m!"mappedRes': {mappedRes'}"
 
-    let mappedRes'' :Array (Lean.Expr × Lean.Expr) ←  mappedRes'.mapM (fun (a,b) => do
-      -- let a' ← a.toLeanExpr' outputRing lift atoms'
-      let b' ← b.toLeanExpr' outputRing lift atoms'
-      pure (a, b')
-    )
+    -- let mappedRes'' :Array (Lean.Expr × Lean.Expr) ←  mappedRes'.mapM (fun (a,b) => do
+    --   let b' ← b.toLeanExpr' outputRing lift atoms'
+    --   pure (a, b')
+    -- )
 
-    logInfo m!"mappedRes'': {mappedRes''}"
+    -- logInfo m!"mappedRes'': {mappedRes''}"
 
-    let mappedRes''' : Array Term ←  mappedRes''.mapIdxM (fun i (_, coeff) => do
-      let neg ← if i < mappedRes''.size - 1 then
+    let mappedRes'' : Array Term ←  mappedRes'.mapIdxM (fun i (_, coeff) => do
+      let neg ← if i < mappedRes'.size - 1 then
         mkAppM ``Neg.neg #[coeff]
       else
         pure coeff
@@ -278,13 +347,14 @@ unsafe def leanM2Tactic : Tactic
       let negTerm ← Lean.PrettyPrinter.delab neg
       return negTerm
     )
+    logInfo m!"mappedRes'': {mappedRes''}"
 
 
 
     -- Run the simp tactic with the specified lemmas
     evalTactic (← `(tactic| simp [Ideal.mem_span_insert', Ideal.mem_span_singleton']))
 
-    Mathlib.Tactic.runUse false (← Mathlib.Tactic.mkUseDischarger none) (mappedRes'''.toList)
+    Mathlib.Tactic.runUse false (← Mathlib.Tactic.mkUseDischarger none) (mappedRes''.toList)
 
     -- evalTactic (← `(tactic| simp))
 
@@ -312,6 +382,9 @@ set_option trace.Meta.Tactic.data_synth false
 
 example (x: ℚ) : x ∈ Ideal.span {x}  := by
   lean_m2 (fun (t:ℚ) => t) [x]
+
+example (x: ℝ) : x ∈ Ideal.span {x}  := by
+  lean_m2 (fun (t:ℝ) => t) [x]
 
 example (x y z: ℚ) : x^2+y^2 ∈ Ideal.span {x,y,z}  := by
   lean_m2 (fun (t:ℚ) => t) [x,y,z]
