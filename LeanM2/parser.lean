@@ -7,6 +7,7 @@ import Std.Internal.Parsec.String
 import Mathlib.Data.Nat.Digits
 -- import SciLean
 -- import LeanM2.toM2
+import LeanM2.Expr2Expr
 import LeanM2.M2Type
 import LeanM2.defs
 import Std.Internal.Parsec.String
@@ -110,15 +111,23 @@ open RatM2 in
 def M2Rat.parse : Parser M2Rat := do
   let s ← manyChars (satisfy fun c => c.isDigit || c == '/' || c == '.' || c == '-')
   match s.toRat? with
-  | some q => pure q
+  | some q => pure ⟨q⟩
   | none => fail s!"Could not parse '{s}' as a rational number"
 
 open RatM2 in
 instance : Unrepr M2Rat where
   parse := M2Rat.parse
 
+open RatM2 in
+def Rat.parse : Parser ℚ := do
+  let s ← manyChars (satisfy fun c => c.isDigit || c == '/' || c == '.' || c == '-')
+  match s.toRat? with
+  | some q => pure q
+  | none => fail s!"Could not parse '{s}' as a rational number"
+
+
 instance : Unrepr ℚ where
-  parse := M2Rat.parse
+  parse := Rat.parse
 
 instance : parseableRepr "QQ" where
   R := ℚ
@@ -235,7 +244,7 @@ mutual
       parseM2RealPowRest x)
     <|>
     (do -- Parse rational number
-      let q ← M2Rat.parse
+      let q ← Rat.parse
       parseM2RealPowRest (M2Real.rat q))
 
   partial def parseM2RealPowRest (base : M2Real) : Parser M2Real := do
@@ -355,7 +364,7 @@ mutual
       parseM2ComplexPowRest x)
     <|>
     (do -- Parse rational number
-      let q ← M2Rat.parse
+      let q ← Rat.parse
       parseM2ComplexPowRest (M2Complex.rat q))
 
   partial def parseM2ComplexPowRest (base : M2Complex) : Parser M2Complex := do
@@ -480,7 +489,19 @@ def ws : Parser Unit := do
 def parsePolynomial (target : Type) [Unrepr target] (s : String) : Except String (Expr target) :=
   parseString parseExpr s
 
+open Qq in
+def parsePolynomial' (M2R : Type)
+[liftInst : ToLeanExpr M2R] [inst : Unrepr M2R] (s : String)
+: Option (Lean.Expr → Lean.Expr → List Lean.Expr → MetaM Lean.Expr) :=
+  let parsed := parseString (@parseExpr M2R inst) s
+  match parsed with
+  | Except.ok e => do
 
+    let e' := fun S f atoms => Expr.toLeanExpr' S f atoms e
+    some (e')
+
+  | Except.error _ =>
+    none
 
 -- def parsePolynomial' {R S M2R} [mInst : M2Type R M2R] [uInst : Unrepr M2R] (s : String) (lift : R → S) (atoms : List S) : Except String (S) :=
 --   let output' := parseString (@parseExpr M2R uInst) s

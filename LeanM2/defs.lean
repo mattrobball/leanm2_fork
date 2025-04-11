@@ -228,88 +228,91 @@ def IdExprToString [ToString M2R] (I : Ideal S) {eI} (hx : LiftIdExpr f atoms I 
 
 
 
-
-def atoms' :List ℚ := []
-def f' := RingHom.id ℚ
-
-
-#check (IsIdExpr atoms' f' (Ideal.span {}) _) rewrite_by data_synth
-
-set_option trace.Meta.Tactic.data_synth true
+def x : ℚ := 1
+def atoms' :List ℚ := [x]
+def f' : ℚ → ℚ := fun x => x
 
 
-
-#check (IsIdExpr atoms' f' (Ideal.span {f' (1:ℚ)}) _) rewrite_by data_synth
-
-#check (IsIdExpr atoms' f' (Ideal.span {f' (1:ℚ), f' (2:ℚ)}) _) rewrite_by data_synth
-
-#check LiftIdExpr f' atoms' (Ideal.span {f' (1:ℚ), f' (2:ℚ)}) _ rewrite_by data_synth
-
-#eval toExpr f' atoms' (2:ℚ) -- this should work
-
-#check LiftExpr f' atoms' (f' (2:ℚ)) _ rewrite_by data_synth
-
-#check LiftM2 (2:ℚ) _ rewrite_by data_synth -- this should work, since 2 is in the ideal
-
-def atoms'' :List ℝ := []
-
-noncomputable def f'' := RingHom.id ℝ
-
-#check (IsIdExpr atoms'' f'' (Ideal.span {}) _) rewrite_by data_synth
+-- #check (IsIdExpr atoms' f' (Ideal.span {}) _) rewrite_by data_synth
 
 set_option trace.Meta.Tactic.data_synth true
 
-#eval partialToString (Real.sqrt (1:ℚ):ℝ)
+#check (LiftExpr f' atoms' (f' (f' (2:ℚ))) _) rewrite_by data_synth
 
-#eval toExpr f'' atoms'' (f'' (Real.sqrt (2:ℚ)) * f'' (1:ℚ)) -- this should work
+#check (LiftExpr f' [x] (x) _) rewrite_by data_synth
+#check (LiftM2 (2:ℚ) _) rewrite_by data_synth
 
-#check LiftExpr f'' atoms'' (f'' (1:ℚ)) _ rewrite_by data_synth
+-- #check (IsIdExpr atoms' f' (Ideal.span {f' (1:ℚ)}) _) rewrite_by data_synth
 
-#check (IsIdExpr atoms'' f'' (Ideal.span {f'' (1 : ℚ)}) _) rewrite_by data_synth
+-- #check (IsIdExpr atoms' f' (Ideal.span {f' (1:ℚ), f' (2:ℚ)}) _) rewrite_by data_synth
 
-#check (IsIdExpr atoms'' f'' (Ideal.span {f'' (1: ℚ) , f'' (2 : ℚ)}) _) rewrite_by data_synth
+-- #check LiftIdExpr f' atoms' (Ideal.span {f' (1:ℚ), f' (2:ℚ)}) _ rewrite_by data_synth
 
-#check LiftIdExpr f'' atoms'' (Ideal.span {f'' (1:ℚ), f'' (2:ℚ)}) _ rewrite_by data_synth
+-- #eval toExpr f' atoms' (2:ℚ) -- this should work
 
-#eval exprToString f'' atoms'' (f'' (2:ℚ) + f'' (Real.sqrt ((1 : ℚ))))
+-- #check LiftExpr f' atoms' (f' (2:ℚ)) _ rewrite_by data_synth
 
+-- #check LiftM2 (2:ℚ) _ rewrite_by data_synth -- this should work, since 2 is in the ideal
 
+-- def atoms'' :List ℝ := []
 
+-- noncomputable def f'' := RingHom.id ℝ
 
+-- #check (IsIdExpr atoms'' f'' (Ideal.span {}) _) rewrite_by data_synth
 
-def atoms''' :List ℂ := []
+-- set_option trace.Meta.Tactic.data_synth true
 
-noncomputable def f''' := RingHom.id ℂ
+-- #eval partialToString (Real.sqrt (1:ℚ):ℝ)
 
-#check (IsIdExpr atoms''' f''' (Ideal.span {}) _) rewrite_by data_synth
+-- #eval toExpr f'' atoms'' (f'' (Real.sqrt (2:ℚ)) * f'' (1:ℚ)) -- this should work
 
-set_option trace.Meta.Tactic.data_synth true
+-- #check LiftExpr f'' atoms'' (f'' (1:ℚ)) _ rewrite_by data_synth
 
-#eval partialToString (((1:ℚ):ℂ)^(1/2))
+-- #check (IsIdExpr atoms'' f'' (Ideal.span {f'' (1 : ℚ)}) _) rewrite_by data_synth
 
-#eval toExpr f''' atoms''' (f''' ((2:ℚ)^(1/2)) * f''' (1:ℚ)) -- this should work
+-- #check (IsIdExpr atoms'' f'' (Ideal.span {f'' (1: ℚ) , f'' (2 : ℚ)}) _) rewrite_by data_synth
 
-#check LiftExpr f''' atoms''' (f''' (1:ℚ)) _ rewrite_by data_synth
+-- #check LiftIdExpr f'' atoms'' (Ideal.span {f'' (1:ℚ), f'' (2:ℚ)}) _ rewrite_by data_synth
 
-#check (IsIdExpr atoms''' f''' (Ideal.span {f''' (1 : ℚ)}) _) rewrite_by data_synth
-
-#check (IsIdExpr atoms''' f''' (Ideal.span {f''' (1: ℚ) , f''' (2 : ℚ)}) _) rewrite_by data_synth
-
-#check LiftIdExpr f''' atoms''' (Ideal.span {f''' (1:ℚ), f''' (2:ℚ)}) _ rewrite_by data_synth
-
-#eval exprToString f''' atoms''' (f''' (2:ℚ) + f''' ((1 : ℚ)^(1/2)))
-
+-- #eval exprToString f'' atoms'' (f'' (2:ℚ) + f'' (Real.sqrt ((1 : ℚ))))
 
 
 
-noncomputable def X : Polynomial ℚ:= Polynomial.X
-noncomputable def vars :List (Polynomial ℚ) := [X]
-noncomputable def lift : RingHom ℚ (Polynomial ℚ):= Polynomial.C
-
-#check (IsIdExpr [X] lift (Ideal.span {X^2}) _) rewrite_by data_synth
-
-#check LiftIdExpr lift [X] (Ideal.span {X^2}) _ rewrite_by data_synth
 
 
-#eval exprToString lift [X] (lift 2)
-#eval IdExprToString [X] lift (Ideal.span {X^2})
+-- def atoms''' :List ℂ := []
+
+-- noncomputable def f''' := RingHom.id ℂ
+
+-- #check (IsIdExpr atoms''' f''' (Ideal.span {}) _) rewrite_by data_synth
+
+-- set_option trace.Meta.Tactic.data_synth true
+
+-- #eval partialToString (((1:ℚ):ℂ)^(1/2))
+
+-- #eval toExpr f''' atoms''' (f''' ((2:ℚ)^(1/2)) * f''' (1:ℚ)) -- this should work
+
+-- #check LiftExpr f''' atoms''' (f''' (1:ℚ)) _ rewrite_by data_synth
+
+-- #check (IsIdExpr atoms''' f''' (Ideal.span {f''' (1 : ℚ)}) _) rewrite_by data_synth
+
+-- #check (IsIdExpr atoms''' f''' (Ideal.span {f''' (1: ℚ) , f''' (2 : ℚ)}) _) rewrite_by data_synth
+
+-- #check LiftIdExpr f''' atoms''' (Ideal.span {f''' (1:ℚ), f''' (2:ℚ)}) _ rewrite_by data_synth
+
+-- #eval exprToString f''' atoms''' (f''' (2:ℚ) + f''' ((1 : ℚ)^(1/2)))
+
+
+
+
+-- noncomputable def X : Polynomial ℚ:= Polynomial.X
+-- noncomputable def vars :List (Polynomial ℚ) := [X]
+-- noncomputable def lift : RingHom ℚ (Polynomial ℚ):= Polynomial.C
+
+-- #check (IsIdExpr [X] lift (Ideal.span {X^2}) _) rewrite_by data_synth
+
+-- #check LiftIdExpr lift [X] (Ideal.span {X^2}) _ rewrite_by data_synth
+
+
+-- #eval exprToString lift [X] (lift 2)
+-- #eval IdExprToString [X] lift (Ideal.span {X^2})

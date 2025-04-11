@@ -3,31 +3,44 @@ import SciLean
 
 class M2Type (T : Type*) (M2T : outParam Type*) where
   toLean : M2T → T
-  repr : String
+  -- repr : String
 
+class M2Repr (M2T : Type*) where
+  repr : String
 
 
 namespace IntM2
 
-instance : M2Type ℤ ℤ where
-  toLean e := e
-  repr := "ZZ"
 
 alias M2Int := Int
+
+instance : M2Type ℤ M2Int where
+  toLean e := e
+  -- repr := "ZZ"
+
+instance : M2Repr M2Int where
+  repr := "ZZ"
 
 end IntM2
 
 
+
 namespace RatM2
 
-instance : M2Type ℚ ℚ where
-  toLean e := e
+-- alias M2Rat := Rat
+structure M2Rat where
+  q : ℚ
+  deriving Inhabited, Repr
+
+instance : M2Type ℚ M2Rat where
+  toLean e := e.q
+  -- repr := "QQ"
+
+instance : M2Repr M2Rat where
   repr := "QQ"
 
-alias M2Rat := Rat
-
 instance : ToString M2Rat where
-  toString r := @toString ℚ instToStringRat r
+  toString r := @toString ℚ instToStringRat r.q
 
 
 end RatM2
@@ -85,9 +98,10 @@ noncomputable def M2Real.toReal (r : M2Real)  : ℝ :=
 noncomputable
 instance : M2Type ℝ M2Real where
   toLean e := e.toReal
+  -- repr := "RR"
+
+instance : M2Repr M2Real where
   repr := "RR"
-
-
 end RealM2
 
 
@@ -152,8 +166,11 @@ noncomputable def M2Complex.toComplex (r : M2Complex)  : ℂ :=
 noncomputable
 instance : M2Type ℂ M2Complex where
   toLean e := e.toComplex
-  repr := "CC"
+  -- repr := "CC"
 
+
+instance : M2Repr M2Complex where
+  repr := "CC"
 
 end ComplexM2
 
@@ -175,7 +192,7 @@ structure LiftM2 {R M2R} [M2Type R M2R] (x : R) (m : M2R) : Prop where
 namespace IntSynthThms
 
 @[data_synth]
-theorem lift_int (z:ℤ) : LiftM2 (z:ℤ) (z : ℤ) where
+theorem lift_int (z:ℤ) : LiftM2 (z:ℤ) (z : M2Int) where
   to_lean := by simp[M2Type.toLean]
 
 end IntSynthThms
@@ -184,10 +201,11 @@ end IntSynthThms
 namespace RatSynthThms
 
 @[data_synth]
-theorem lift_rat (q : ℚ) : LiftM2 (q : ℚ) (q : ℚ) where
+theorem lift_rat (q : ℚ) : LiftM2 (q : ℚ) (⟨q⟩ : M2Rat) where
   to_lean := by simp[M2Type.toLean]
 
 end RatSynthThms
+
 
 
 namespace RealSynthThms
@@ -256,6 +274,13 @@ theorem lift_div (x y : ℝ) (hx : LiftM2 x xe) (hy : LiftM2 y ye):
 
 end RealSynthThms
 
+
+set_option trace.Meta.Tactic.data_synth true
+open RatSynthThms RatM2 in
+#check (LiftM2 (1:ℚ) _ ) rewrite_by data_synth
+
+
+#check (LiftM2 ((1:ℚ):ℝ) _ ) rewrite_by data_synth
 
 
 
