@@ -157,8 +157,62 @@ instance : ToLeanExpr M2Real where
 
 end RealM2
 
+#check (Real.pi : ℂ)
+
+#check ((2 : ℚ ) : ℂ)
+
+namespace ComplexM2
+open Qq in
+def M2Complex.toLeanExpr : M2Complex → Lean.Expr → MetaM Lean.Expr := fun r => fun f =>
+  match r with
+  | .rat r => do
+    let num :ℤ := r.num
+    let denom :ℤ := r.den
+    let r' := q($num /. $denom)
+    let coe_r' ← mkAppOptM ``Rat.cast #[q(ℂ), q(Complex.instRatCast), r']
+    mkAppM' f #[coe_r']
+  | .sqrt r => do
+    let r' ← M2Complex.toLeanExpr r f
+    let exp := q(1 / 2)
+    mkAppM ``HPow.hPow #[r',exp]
+  | .log r => do
+    let r' ← M2Complex.toLeanExpr r f
+    mkAppM ``Complex.log #[r']
+  | .exp r => do
+    let r' ← M2Complex.toLeanExpr r f
+    mkAppM ``Complex.exp #[r']
+  | .pi => do
+    let a ← mkAppM ``Real.pi #[]
+    mkAppM ``Complex.ofReal #[a]
+  | .i => do
+    mkAppM ``Complex.I #[]
+  | .add x y => do
+    let x' ← M2Complex.toLeanExpr x f
+    let y' ← M2Complex.toLeanExpr y f
+    mkAppM ``HAdd.hAdd #[x', y']
+  | .mul x y => do
+    let x' ← M2Complex.toLeanExpr x f
+    let y' ← M2Complex.toLeanExpr y f
+    mkAppM ``HMul.hMul #[x', y']
+  | .pow x y => do
+    let x' ← M2Complex.toLeanExpr x f
+    let y' ← M2Complex.toLeanExpr y f
+    mkAppM ``HPow.hPow #[x', y']
+  | .sub x y => do
+    let x' ← M2Complex.toLeanExpr x f
+    let y' ← M2Complex.toLeanExpr y f
+    mkAppM ``HSub.hSub #[x', y']
+  | .div x y => do
+    let x' ← M2Complex.toLeanExpr x f
+    let y' ← M2Complex.toLeanExpr y f
+    mkAppM ``HDiv.hDiv #[x', y']
 
 
+instance : ToLeanExpr M2Complex where
+  toLeanExpr := M2Complex.toLeanExpr
+
+
+end ComplexM2
 
 
 

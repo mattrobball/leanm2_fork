@@ -114,6 +114,7 @@ unsafe def leanM2Tactic : Tactic
 
     let mappedRes'_opt : Array (Lean.Expr × Option (Lean.Expr)) ← mappedRes.mapM (fun (a,b) => do
       -- let parsed := parsePolynomial' M2Rat b
+      -- logInfo m!"parsing polynomial: {b} in {M2R}"
       let parsedExpr ← mkAppOptM ``parsePolynomial' #[M2R,none,none, q($b)]
       let parsed ← evalExpr (Option (Lean.Expr → Lean.Expr → List Lean.Expr → MetaM Lean.Expr)) q(Option (Lean.Expr → Lean.Expr → List Lean.Expr → MetaM Lean.Expr)) parsedExpr
       let parsed' ← match parsed with
@@ -122,7 +123,7 @@ unsafe def leanM2Tactic : Tactic
           pure (some output')
         | none =>
           pure none
-
+      -- logInfo m!"parsed: {parsed'}"
       pure (a, parsed')
     )
 
@@ -180,15 +181,20 @@ set_option trace.Meta.Tactic.data_synth false
 def lift : ℚ→ℚ := fun x => x
 
 
+
 example (x: ℚ) : ((fun (t:ℚ) => t) 2) + x ∈ Ideal.span {x}  := by
   -- let f := fun (t:ℚ) => t
   lean_m2 (fun (t:ℚ) => t) [x]
 
-example (x: ℝ) : ((fun (t:ℝ) => t) ((2:ℚ)))+x ∈ Ideal.span {x}  := by
+example (x: ℝ) : Real.exp x ∈ Ideal.span {x}  := by
   lean_m2 (fun (t:ℝ) => t) [x]
 
 example (x y z: ℚ) : x^2+y^2 ∈ Ideal.span {x,y,z}  := by
   lean_m2 (fun (t:ℚ) => t) [x,y,z]
+
+example (x y z: ℂ) : x^2+y^2 ∈ Ideal.span {x,y,z}  := by
+  lean_m2 (fun (t:ℂ) => t) [x,y,z]
+
 
 example (x y : ℚ) : x^2+y^2 ∈ Ideal.span {x,y}  := by
   lean_m2 (fun (x:ℚ) => x) [x,y]

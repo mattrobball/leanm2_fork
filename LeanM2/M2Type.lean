@@ -146,6 +146,8 @@ instance : ToString M2Complex where
   toString r :=  toString' r
 
 
+-- #check (2 : ℂ)^(0.5 : ℂ)
+-- #eval (⟨0.5,0⟩ : ℂ)
 
 noncomputable def M2Complex.toComplex (r : M2Complex)  : ℂ :=
   match r with
@@ -280,7 +282,7 @@ open RatSynthThms RatM2 in
 #check (LiftM2 (1:ℚ) _ ) rewrite_by data_synth
 
 
-#check (LiftM2 ((1:ℚ):ℝ) _ ) rewrite_by data_synth
+#check (LiftM2 (((2:ℚ):ℝ)+((2:ℚ):ℝ)) _ ) rewrite_by data_synth
 
 
 
@@ -375,7 +377,9 @@ variable {R M2R} [M2Type R M2R] [ToString M2R]
 def partialToString (x : R) {m : M2R} (hx : LiftM2 x m := by data_synth) : String := toString m
 
 
-#eval partialToString ((2:ℚ):ℝ)
+#eval partialToString (Real.sqrt ((2:ℚ):ℝ) + ((2:ℚ):ℝ))
+
+#eval partialToString (((1:ℚ):ℝ)+((1:ℚ):ℝ))
 
 
 #eval partialToString (Real.exp ((3:ℚ)*(2:ℚ) : ℝ))
