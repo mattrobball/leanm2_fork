@@ -3,16 +3,22 @@ import SciLean
 
 class M2Type (T : Type*) (M2T : outParam Type*) where
   toLean : M2T → T
+
+
   -- repr : String
 
 class M2Repr (M2T : Type*) where
   repr : String
 
 
+class M2LifterInv (R) (M2R) [inst : M2Type R M2R] where
+  fromLean : R → M2R
+  fact : (@M2Type.toLean R M2R inst) ∘ fromLean = id
+
 namespace IntM2
 
 
-alias M2Int := Int
+alias M2Int := Int -- TODO fix to structure
 
 instance : M2Type ℤ M2Int where
   toLean e := e
@@ -364,6 +370,37 @@ theorem lift_div (x y : ℂ) (hx : LiftM2 x xe) (hy : LiftM2 y ye):
 
 
 end ComplexSynthThms
+
+
+
+
+instance : M2LifterInv ℤ M2Int where
+  fromLean := fun e => e
+  fact := by
+    unfold toLean
+    unfold instM2TypeIntM2Int
+    simp
+    rfl
+
+
+instance : M2LifterInv ℚ M2Rat where
+  fromLean := fun q => ⟨q⟩
+  fact := by
+    unfold toLean
+    unfold instM2TypeRatM2Rat
+    simp
+    rfl
+
+
+-- instance : M2LifterInv ℝ M2Real where
+--   fromLean := fun r =>
+--     let x := (LiftM2 r _ ) rewrite_by data_synth
+--   fact := by
+--     unfold toLean
+--     unfold instM2TypeRatM2Rat
+--     simp
+--     rfl
+
 
 
 

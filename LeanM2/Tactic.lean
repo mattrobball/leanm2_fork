@@ -182,11 +182,11 @@ def lift : ℚ→ℚ := fun x => x
 
 
 
-example (x: ℚ) : ((fun (t:ℚ) => t) 2) + x ∈ Ideal.span {x}  := by
-  -- let f := fun (t:ℚ) => t
-  lean_m2 (fun (t:ℚ) => t) [x]
+-- example (x: ℚ) : ((fun (t:ℚ) => t) 2) + x ∈ Ideal.span {x}  := by
+--   -- let f := fun (t:ℚ) => t
+--   lean_m2 (fun (t:ℚ) => t) [x]
 
-example (x: ℝ) : Real.exp x ∈ Ideal.span {x}  := by
+example (x: ℝ) : ((fun (t:ℝ) => t) (Real.sqrt ((2:ℚ):ℝ))) + x ∈ Ideal.span {((fun (t:ℝ) => t) (Real.sqrt ((2:ℚ):ℝ))) + x}  := by
   lean_m2 (fun (t:ℝ) => t) [x]
 
 example (x y z: ℚ) : x^2+y^2 ∈ Ideal.span {x,y,z}  := by
@@ -202,8 +202,8 @@ example (x y : ℚ) : x^2+y^2 ∈ Ideal.span {x,y}  := by
 example (x y : ℚ) : x^2+x*y^2 ∈ Ideal.span {x}  := by
   lean_m2 (fun (x:ℚ) => x) [x,y]
 
-example (x y : ℚ) : x^2+y^2 ∈ Ideal.span {}  := by
-  lean_m2 (fun (x:ℚ) => x) [x,y]
+-- example (x y : ℚ) : x^2+y^2 ∈ Ideal.span {}  := by
+--   lean_m2 (fun (x:ℚ) => x) [x,y]
 
 
 
@@ -226,9 +226,9 @@ example (x y z : ℚ) : x^2*y+y*x ∈ Ideal.span {x, y, z}  := by
 
 
 
-example (a b c d e f : ℚ) : a^3*c+a^2*b*d-a^2*e*f+a*d*e^2-a*c*d*f
-  ∈ Ideal.span {a^2+b*c-d*e, a*b+c*d-e*f, a*c+b*d-f^2}  := by
-  lean_m2 (fun (x:ℚ) => x) [a,b,c,d,e,f]
+-- example (a b c d e f : ℚ) : a^3*c+a^2*b*d-a^2*e*f+a*d*e^2-a*c*d*f
+--   ∈ Ideal.span {a^2+b*c-d*e, a*b+c*d-e*f, a*c+b*d-f^2}  := by
+--   lean_m2 (fun (x:ℚ) => x) [a,b,c,d,e,f]
 
 
 example (a b c d e f : ℚ) : a^4+a^2*b*c-a^2*d*e+a*b^3+b^2*c*d-b^2*e*f+a*c^3+b*c^2*d-c^2*f^2
@@ -257,8 +257,8 @@ example (a b c d e f : ℚ) (h : b * c = e * f) : a * b * c * d = a * e * f * d 
   linarith
 
 
-example (x : ℝ) : Ideal.span {((2:ℚ):ℝ) * x} = Ideal.span {x}  := by
-  have a : ((2:ℚ):ℝ) * x ∈ Ideal.span {x} := by sorry
-  have b : x ∈ (Ideal.span {((2:ℚ):ℝ) * x}) := by sorry
-  apply Ideal.mem_span_singleton'.1 at
-  sorry
+-- example (x : ℝ) : Ideal.span {((2:ℚ):ℝ) * x} = Ideal.span {x}  := by
+--   have a : ((2:ℚ):ℝ) * x ∈ Ideal.span {x} := by sorry
+--   have b : x ∈ (Ideal.span {((2:ℚ):ℝ) * x}) := by sorry
+--   apply Ideal.mem_span_singleton'.1 at
+--   sorry

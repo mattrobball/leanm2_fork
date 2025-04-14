@@ -201,7 +201,7 @@ structure LiftM2Ideal {R M2R} [Ring R] [DecidableEq R] [M2Type R M2R] (I : Ideal
 
 
 section
-variable {R M2R : Type} [Ring R] [DecidableEq R] [M2Type R M2R]
+variable {R M2R : Type} [Ring R] [DecidableEq R] [typeInst : M2Type R M2R] [liftInst :M2LifterInv R M2R]
 
 @[data_synth out generators]
 structure IsM2Ideal (I : Ideal R) (generators : List M2R) : Prop where
@@ -217,20 +217,37 @@ theorem isM2Ideal_nil : IsM2Ideal (Ideal.span ({} : Set R)) ([] : List M2R) := b
 
 
 @[data_synth]
-theorem isM2Id_singleton (g : R) (hg : M2Type.toLean ge = g)
-  : IsM2Ideal (Ideal.span (Singleton.singleton g)) [ge] := by
+theorem isM2Id_singleton (g : R) --(hg : M2Type.toLean ge = g)
+  : IsM2Ideal (Ideal.span (Singleton.singleton g)) [M2LifterInv.fromLean g] := by
   constructor
   congr
   simp
-  exact id (Eq.symm hg)
+  have duh (f : R → R) : (f = id) → f g = g := by
+    intro h
+    rw [h]
+    simp
+  specialize duh (M2Type.toLean ∘ M2LifterInv.fromLean) (@M2LifterInv.fact R M2R typeInst liftInst)
+  exact id (Eq.symm duh)
+
+
+  --exact id (Eq.symm hg)
 
 
 
 @[data_synth]
-theorem isM2Id_insert (g : R) (hg : M2Type.toLean ge = g) (rest : Set R) (hrest : IsM2Ideal (Ideal.span rest) restList)
-  : IsM2Ideal (Ideal.span (insert g rest)) (ge :: restList) := by
+theorem isM2Id_insert (g : R) --(hg : M2Type.toLean ge = g)
+(rest : Set R) (hrest : IsM2Ideal (Ideal.span rest) restList)
+  : IsM2Ideal (Ideal.span (insert g rest)) ((M2LifterInv.fromLean g) :: restList) := by
   constructor
-  simp only [List.map_cons, List.toFinset_cons,Finset.coe_insert,Ideal.span_insert, hrest.1, hg]
+  simp only [List.map_cons, List.toFinset_cons,Finset.coe_insert,Ideal.span_insert, hrest.1]
+  congr
+  have duh (f : R → R) : (f = id) → f g = g := by
+    intro h
+    rw [h]
+    simp
+  specialize duh (M2Type.toLean ∘ M2LifterInv.fromLean) (@M2LifterInv.fact R M2R typeInst liftInst)
+  exact id (Eq.symm duh)
+
 
 
 
@@ -343,6 +360,6 @@ instance {R:Type*} {M2R} [CommRing R] {I:Ideal R}
 --   inst_M2Type := inferInstance
 --   parse := M2ZMod.parse
 
-
+--should work sufficiently for
 
 end QuotM2
