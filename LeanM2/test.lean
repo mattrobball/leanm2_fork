@@ -10,11 +10,15 @@ example (x y : ℤ) : ((fun (t:ℤ) => t) 2) * x + ((fun (t:ℤ) => t) 3) * y �
 example (x : ℤ) : 10 * x ∈ Ideal.span {5 * x} := by
   lean_m2 (fun (t:ℤ) => t) [x]
 
+example (x y z : ℤ) : x^2 * y + z^3 ∈ Ideal.span {x, y, z} := by
+  lean_m2 (fun (t:ℤ) => t) [x, y, z]
+
 example (x y z : ℚ) : x^2 * y + z^3 ∈ Ideal.span {x, y, z} := by
   lean_m2 (fun (t:ℚ) => t) [x, y, z]
 
 example (x y : ℚ) : 3 * x^2 + 2 * y^2 ∈ Ideal.span {x^2, y^2} := by
   lean_m2 (fun (t:ℚ) => t) [x, y]
+  ring
 
 example (x : ℤ) : 6 * x ∈ Ideal.span {2 * x, 3 * x} := by
   lean_m2 (fun (t:ℤ) => t) [x]

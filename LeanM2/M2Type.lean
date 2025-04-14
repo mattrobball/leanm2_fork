@@ -18,14 +18,22 @@ class M2LifterInv (R) (M2R) [inst : M2Type R M2R] where
 namespace IntM2
 
 
-alias M2Int := Int -- TODO fix to structure
+-- alias M2Int := Int -- TODO fix to structure
+
+structure M2Int where
+  z : ℤ
+  deriving Inhabited, Repr
 
 instance : M2Type ℤ M2Int where
-  toLean e := e
+  toLean e := e.z
   -- repr := "ZZ"
 
 instance : M2Repr M2Int where
   repr := "ZZ"
+
+instance : ToString M2Int where
+  toString r := @toString ℤ instToStringInt r.z
+
 
 end IntM2
 
@@ -200,7 +208,7 @@ structure LiftM2 {R M2R} [M2Type R M2R] (x : R) (m : M2R) : Prop where
 namespace IntSynthThms
 
 @[data_synth]
-theorem lift_int (z:ℤ) : LiftM2 (z:ℤ) (z : M2Int) where
+theorem lift_int (z:ℤ) : LiftM2 (z:ℤ) (⟨z⟩ : M2Int) where
   to_lean := by simp[M2Type.toLean]
 
 end IntSynthThms
@@ -375,7 +383,7 @@ end ComplexSynthThms
 
 
 instance : M2LifterInv ℤ M2Int where
-  fromLean := fun e => e
+  fromLean := fun e => ⟨e⟩
   fact := by
     unfold toLean
     unfold instM2TypeIntM2Int

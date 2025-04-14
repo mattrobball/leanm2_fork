@@ -139,10 +139,10 @@ end RatM2
 
 namespace IntM2
 
-def M2Int.parse : (Parser ℤ) := do
+def M2Int.parse : (Parser M2Int) := do
     let s ← manyChars (satisfy fun c => c.isDigit || c == '-')
     match s.toInt? with
-    | some i => pure i
+    | some i => pure ⟨i⟩
     | none => fail s!"Could not parse '{s}' as an integer"
 
 

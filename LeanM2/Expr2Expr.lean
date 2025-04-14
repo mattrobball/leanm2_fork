@@ -80,15 +80,15 @@ class ToLeanExpr (α : Type*) where
 namespace IntM2
 open Qq in
 def M2Int.toLeanExpr : M2Int → Lean.Expr → MetaM Lean.Expr := fun r => fun f =>
-  let r' : ℤ := r
+  let r' : ℤ := r.z
   let num := ToExpr.toExpr r'
   mkAppM' f #[num]
 
 instance : ToLeanExpr M2Int where
   toLeanExpr := M2Int.toLeanExpr
 
-instance : ToLeanExpr ℤ where
-  toLeanExpr := M2Int.toLeanExpr
+-- instance : ToLeanExpr ℤ where
+--   toLeanExpr := M2Int.toLeanExpr
 
 end IntM2
 

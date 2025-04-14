@@ -6,6 +6,7 @@ import Lean.PrettyPrinter.Delaborator.Basic
 import Mathlib.Tactic.Use
 import Mathlib.Tactic.Polyrith
 import LeanM2.Expr2Expr
+import LeanM2.coolRings
 
 
 syntax (name:=leanM2Stx) "lean_m2" term : tactic
@@ -26,6 +27,7 @@ unsafe def leanM2Tactic : Tactic
     | .lam _ type _ _ => do
         let M2T ← mkFreshExprMVar q(Type)
         let instType ← mkAppM ``M2Type #[type, M2T]
+        -- logInfo m!"inputM2Type: {instType}"
         let _ ← synthInstance instType
         -- logInfo M2T
         let reprExpr ← mkAppOptM ``M2Repr.repr #[M2T,none]
@@ -175,90 +177,96 @@ unsafe def leanM2Tactic : Tactic
 
 
 
-set_option trace.Meta.Tactic.data_synth false
+-- set_option trace.Meta.Tactic.data_synth false
+
+-- example (x y : ZMod 11) : x^2 + y^2 ∈ Ideal.span {x, y} := by
+--   lean_m2 (fun (t : ZMod 11) => t) [x, y]
+
+-- -- def lift : ℚ→ℚ := fun x => x
+
+-- def getM2Type (T : Type*) {M2T} [M2Type T M2T] : Type* :=
+--   M2T
+
+-- #reduce (types := true) getM2Type (ZMod 11)
 
 
-def lift : ℚ→ℚ := fun x => x
+-- -- example (x: ℚ) : ((fun (t:ℚ) => t) 2) + x ∈ Ideal.span {x}  := by
+-- --   -- let f := fun (t:ℚ) => t
+-- --   lean_m2 (fun (t:ℚ) => t) [x]
+
+-- example (x: ℝ) : ((fun (t:ℝ) => t) (Real.sqrt ((2:ℚ):ℝ))) + x ∈ Ideal.span {((fun (t:ℝ) => t) (Real.sqrt ((2:ℚ):ℝ))) + x}  := by
+--   lean_m2 (fun (t:ℝ) => t) [x]
+
+-- example (x y z: ℚ) : x^2+y^2 ∈ Ideal.span {x,y,z}  := by
+--   lean_m2 (fun (t:ℚ) => t) [x,y,z]
+
+-- example (x y z: ℂ) : x^2+y^2 ∈ Ideal.span {x,y,z}  := by
+--   lean_m2 (fun (t:ℂ) => t) [x,y,z]
 
 
-
--- example (x: ℚ) : ((fun (t:ℚ) => t) 2) + x ∈ Ideal.span {x}  := by
---   -- let f := fun (t:ℚ) => t
---   lean_m2 (fun (t:ℚ) => t) [x]
-
-example (x: ℝ) : ((fun (t:ℝ) => t) (Real.sqrt ((2:ℚ):ℝ))) + x ∈ Ideal.span {((fun (t:ℝ) => t) (Real.sqrt ((2:ℚ):ℝ))) + x}  := by
-  lean_m2 (fun (t:ℝ) => t) [x]
-
-example (x y z: ℚ) : x^2+y^2 ∈ Ideal.span {x,y,z}  := by
-  lean_m2 (fun (t:ℚ) => t) [x,y,z]
-
-example (x y z: ℂ) : x^2+y^2 ∈ Ideal.span {x,y,z}  := by
-  lean_m2 (fun (t:ℂ) => t) [x,y,z]
-
-
-example (x y : ℚ) : x^2+y^2 ∈ Ideal.span {x,y}  := by
-  lean_m2 (fun (x:ℚ) => x) [x,y]
-
-example (x y : ℚ) : x^2+x*y^2 ∈ Ideal.span {x}  := by
-  lean_m2 (fun (x:ℚ) => x) [x,y]
-
--- example (x y : ℚ) : x^2+y^2 ∈ Ideal.span {}  := by
+-- example (x y : ℚ) : x^2+y^2 ∈ Ideal.span {x,y}  := by
 --   lean_m2 (fun (x:ℚ) => x) [x,y]
 
+-- example (x y : ℚ) : x^2+x*y^2 ∈ Ideal.span {x}  := by
+--   lean_m2 (fun (x:ℚ) => x) [x,y]
 
-
-example (x y : ℚ) : x^3+y^3 ∈ Ideal.span {x+y}  := by
-  lean_m2 (fun (x:ℚ) => x) [x,y]
-
-example (x y : Polynomial ℚ) : x^3+y^3 ∈ Ideal.span {x+y}  := by
-  lean_m2 (fun (t:ℚ) => Polynomial.C t) [x,y]
-
+-- -- example (x y : ℚ) : x^2+y^2 ∈ Ideal.span {}  := by
+-- --   lean_m2 (fun (x:ℚ) => x) [x,y]
 
 
 
-example (x y z: ℚ) : x^2+y ∈ Ideal.span {x^2,y}  := by
-  lean_m2 (fun (x:ℚ) => x) [x,y,z]
+-- example (x y : ℚ) : x^3+y^3 ∈ Ideal.span {x+y}  := by
+--   lean_m2 (fun (x:ℚ) => x) [x,y]
 
-
-example (x y z : ℚ) : x^2*y+y*x ∈ Ideal.span {x, y, z}  := by
-  lean_m2 (fun (x:ℚ) => x) [x,y,z]
+-- example (x y : Polynomial ℚ) : x^3+y^3 ∈ Ideal.span {x+y}  := by
+--   lean_m2 (fun (t:ℚ) => Polynomial.C t) [x,y]
 
 
 
 
--- example (a b c d e f : ℚ) : a^3*c+a^2*b*d-a^2*e*f+a*d*e^2-a*c*d*f
+-- example (x y z: ℚ) : x^2+y ∈ Ideal.span {x^2,y}  := by
+--   lean_m2 (fun (x:ℚ) => x) [x,y,z]
+
+
+-- example (x y z : ℚ) : x^2*y+y*x ∈ Ideal.span {x, y, z}  := by
+--   lean_m2 (fun (x:ℚ) => x) [x,y,z]
+
+
+
+
+-- -- example (a b c d e f : ℚ) : a^3*c+a^2*b*d-a^2*e*f+a*d*e^2-a*c*d*f
+-- --   ∈ Ideal.span {a^2+b*c-d*e, a*b+c*d-e*f, a*c+b*d-f^2}  := by
+-- --   lean_m2 (fun (x:ℚ) => x) [a,b,c,d,e,f]
+
+
+-- example (a b c d e f : ℚ) : a^4+a^2*b*c-a^2*d*e+a*b^3+b^2*c*d-b^2*e*f+a*c^3+b*c^2*d-c^2*f^2
 --   ∈ Ideal.span {a^2+b*c-d*e, a*b+c*d-e*f, a*c+b*d-f^2}  := by
 --   lean_m2 (fun (x:ℚ) => x) [a,b,c,d,e,f]
 
 
-example (a b c d e f : ℚ) : a^4+a^2*b*c-a^2*d*e+a*b^3+b^2*c*d-b^2*e*f+a*c^3+b*c^2*d-c^2*f^2
-  ∈ Ideal.span {a^2+b*c-d*e, a*b+c*d-e*f, a*c+b*d-f^2}  := by
-  lean_m2 (fun (x:ℚ) => x) [a,b,c,d,e,f]
+-- example (x y : ℚ) (h : x+y = 0) : x^3 + y^3 = 0 := by
+--   have sufficient : x^3+y^3 ∈ Ideal.span {x+y} := by
+--     lean_m2 (fun (x:ℚ) => x) [x,y]
+--   apply Ideal.mem_span_singleton'.1 at sufficient
+--   simp [mul_zero,h] at sufficient
+--   linarith
 
 
-example (x y : ℚ) (h : x+y = 0) : x^3 + y^3 = 0 := by
-  have sufficient : x^3+y^3 ∈ Ideal.span {x+y} := by
-    lean_m2 (fun (x:ℚ) => x) [x,y]
-  apply Ideal.mem_span_singleton'.1 at sufficient
-  simp [mul_zero,h] at sufficient
-  linarith
-
-
-example (a b c d e f : ℚ) (h : b * c = e * f) : a * b * c * d = a * e * f * d := by
-  polyrith
+-- example (a b c d e f : ℚ) (h : b * c = e * f) : a * b * c * d = a * e * f * d := by
+--   polyrith
 
 
 
-example (a b c d e f : ℚ) (h : b * c = e * f) : a * b * c * d = a * e * f * d := by
-  have sufficient : a*b*c*d - a*e*f*d ∈ Ideal.span {b*c-e*f} := by
-    lean_m2 (fun (x:ℚ) => x) [a,b,c,d,e,f]
-  apply Ideal.mem_span_singleton'.1 at sufficient
-  simp [mul_zero,h] at sufficient
-  linarith
+-- example (a b c d e f : ℚ) (h : b * c = e * f) : a * b * c * d = a * e * f * d := by
+--   have sufficient : a*b*c*d - a*e*f*d ∈ Ideal.span {b*c-e*f} := by
+--     lean_m2 (fun (x:ℚ) => x) [a,b,c,d,e,f]
+--   apply Ideal.mem_span_singleton'.1 at sufficient
+--   simp [mul_zero,h] at sufficient
+--   linarith
 
 
--- example (x : ℝ) : Ideal.span {((2:ℚ):ℝ) * x} = Ideal.span {x}  := by
---   have a : ((2:ℚ):ℝ) * x ∈ Ideal.span {x} := by sorry
---   have b : x ∈ (Ideal.span {((2:ℚ):ℝ) * x}) := by sorry
---   apply Ideal.mem_span_singleton'.1 at
---   sorry
+-- -- example (x : ℝ) : Ideal.span {((2:ℚ):ℝ) * x} = Ideal.span {x}  := by
+-- --   have a : ((2:ℚ):ℝ) * x ∈ Ideal.span {x} := by sorry
+-- --   have b : x ∈ (Ideal.span {((2:ℚ):ℝ) * x}) := by sorry
+-- --   apply Ideal.mem_span_singleton'.1 at
+-- --   sorry

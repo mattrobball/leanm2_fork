@@ -11,7 +11,7 @@ import Mathlib.Algebra.Algebra.ZMod
 import Mathlib.FieldTheory.Finite.Basic
 import Mathlib.FieldTheory.Galois.Basic
 import Mathlib.RingTheory.Ideal.Quotient.Defs
-
+import Mathlib.LinearAlgebra.ExteriorAlgebra.Basic
 
 open Lean Meta Elab Tactic Conv Qq
 open Std.Internal.Parsec Std.Internal.Parsec.String
@@ -21,12 +21,24 @@ open Std.Internal.Parsec Std.Internal.Parsec.String
 namespace ZModM2
 
 
-alias M2ZMod := ZMod
+-- alias M2ZMod := ZMod
+
+structure M2ZMod (p : Nat) where
+  val : ZMod p
 
 
 
 instance {p} : M2Type (ZMod p) (M2ZMod p) where
-  toLean e := (e : (ZMod p))
+  toLean e := (e.val : (ZMod p))
+
+
+-- #check M2Type (ZMod 3) _
+
+
+def getM2Type (T : Type*) {M2T} [M2Type T M2T] : Type* :=
+  M2T
+
+#reduce (types := true) getM2Type (ZMod 22)
 
 
 instance {p} : M2Repr (M2ZMod p) where
@@ -35,10 +47,10 @@ instance {p} : M2Repr (M2ZMod p) where
 def toString' {p} (r : M2ZMod p) : String := --MIGHT NEED TO UPDATE WITH ++"_R"
   match p with
   | 0 =>
-    let r' : ℤ := r
+    let r' : ℤ := r.val
     ToString.toString r'
   | n+1 =>
-    let r' : Fin (n+1) := r
+    let r' : Fin (n+1) := r.val
     ToString.toString r'
 
 instance {p} : ToString (M2ZMod p) where
@@ -51,10 +63,10 @@ open Qq in
 def M2ZMod.toLeanExpr {p} : (M2ZMod p) → Lean.Expr → MetaM Lean.Expr := fun r => fun f =>
   match p with
   | 0 => do
-    let r' : ℤ := r
+    let r' : ℤ := r.val
     pure q($r')
   | n+1 => do
-    let r' : Fin (n+1) := r
+    let r' : Fin (n+1) := r.val
     pure q($r')
 
 instance {p} : ToLeanExpr (M2ZMod p) where
@@ -67,7 +79,7 @@ def M2ZMod.parse {p}: (Parser (M2ZMod p)) := do
     match s.toInt? with
     | some i =>
       let i' :ZMod p:= @Int.cast (ZMod p) AddGroupWithOne.toIntCast i
-      pure (i' : M2ZMod p)
+      pure (⟨i'⟩ : M2ZMod p)
     | none => fail s!"Could not parse '{s}' as an integer"
 
 
