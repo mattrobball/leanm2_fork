@@ -22,8 +22,11 @@ unsafe def leanM2Tactic : Tactic
   let (ideal, elem) ← getMem
   let (_,_,i'') := ideal
   -- logInfo m!"ideal: {parseExprIdealSpan i''}"
+  -- logInfo m!"lifter: {lift}"
+  -- let lift' ← evalExpr (Lean.Expr) q(Lean.Expr) lift
+  -- logInfo m!"lifter': {lift'}"
 
-  let inputM2Type : Lean.Expr× String ← match lift with
+  let inputM2Type : Lean.Expr × String ← match lift with
     | .lam _ type _ _ => do
         let M2T ← mkFreshExprMVar q(Type)
         let instType ← mkAppM ``M2Type #[type, M2T]
@@ -32,9 +35,24 @@ unsafe def leanM2Tactic : Tactic
         -- logInfo M2T
         let reprExpr ← mkAppOptM ``M2Repr.repr #[M2T,none]
         let repr ← evalExpr (String) q(String) reprExpr
-
-
         pure (M2T,repr)
+    | .const n _ => do
+      let constType ← inferType lift
+      -- logInfo m!"constType: {constType}"
+      match constType with
+        | .forallE _ fromType _ _ =>
+            -- logInfo m!"fromType: {fromType}"
+            let M2T ← mkFreshExprMVar q(Type)
+            let instType ← mkAppM ``M2Type #[fromType, M2T]
+            let _ ← synthInstance instType
+            -- logInfo m!"M2T: {M2T}"
+            let reprExpr ← mkAppOptM ``M2Repr.repr #[M2T,none]
+            let repr ← evalExpr (String) q(String) reprExpr
+
+            pure (M2T, repr)
+        | _ =>
+            logError m!"The provided constant {n} is not a function type"
+            default
     | e =>
       logError s!"failed to infer the input ring from the provided lift expression\n{e.dbgToString}"
       default
@@ -112,7 +130,7 @@ unsafe def leanM2Tactic : Tactic
 
     let mut mappedRes : Array (Lean.Expr × String) := arr.mapIdx (fun idx coeff => (idealGenerators.get! idx, coeff))
 
-    logInfo m!"{mappedRes}"
+    -- logInfo m!"{mappedRes}"
 
     let mappedRes'_opt : Array (Lean.Expr × Option (Lean.Expr)) ← mappedRes.mapM (fun (a,b) => do
       -- let parsed := parsePolynomial' M2Rat b
@@ -133,7 +151,7 @@ unsafe def leanM2Tactic : Tactic
       logError m!"failed to parse polynomial coefficients: {mappedRes'_opt.filter (fun (_, b) => b.isNone)|>.map (fun (a,_) => a)}"
 
     let mappedRes' : Array (Lean.Expr × Lean.Expr) := mappedRes'_opt.map (fun (a,b) => (a, b.get!))
-    -- logInfo m!"mappedRes': {mappedRes'}"
+    logInfo m!"mappedRes': {mappedRes'}"
 
     -- let mappedRes'' :Array (Lean.Expr × Lean.Expr) ←  mappedRes'.mapM (fun (a,b) => do
     --   let b' ← b.toLeanExpr' outputRing lift atoms'
@@ -151,15 +169,18 @@ unsafe def leanM2Tactic : Tactic
       let negTerm ← Lean.PrettyPrinter.delab neg
       return negTerm
     )
-    -- logInfo m!"mappedRes'': {mappedRes''}"
+    logInfo m!"mappedRes'': {mappedRes''}"
 
+    -- logInfo m!"lifter: {lift}"
 
 
     -- Run the simp tactic with the specified lemmas
-    evalTactic (← `(tactic| simp [Ideal.mem_span_insert', Ideal.mem_span_singleton']))
 
+    evalTactic (← `(tactic| simp only [Ideal.mem_span_insert', Ideal.mem_span_singleton']))
+
+
+    -- logInfo m!"{mappedRes''.toList}"
     Mathlib.Tactic.runUse false (← Mathlib.Tactic.mkUseDischarger none) (mappedRes''.toList)
-
     -- evalTactic (← `(tactic| simp))
 
     -- Check if there are any goals left, and run ring if needed
@@ -168,15 +189,24 @@ unsafe def leanM2Tactic : Tactic
       evalTactic (← `(tactic| ring))
     let gs ← getGoals
     if !gs.isEmpty then
-      evalTactic (← `(tactic| simp))
+      if lift.isConst then
+        let liftTerm ← Lean.PrettyPrinter.delab lift
+        evalTactic (← `(tactic| simp [$liftTerm:term]))
+      else
+        evalTactic (← `(tactic| simp))
+
+    let gs ← getGoals
+    if !gs.isEmpty then
+      evalTactic (← `(tactic| ring))
 
   pure ()
 | _ =>
   throwUnsupportedSyntax
 
+-- def r := (fun (t:ℝ) => t)
 
-
-
+-- example (x : ℝ) : (r (Real.pi)) * x ∈ Ideal.span {x} := by
+--   lean_m2 r [x]
 -- set_option trace.Meta.Tactic.data_synth false
 
 -- example (x y : ZMod 11) : x^2 + y^2 ∈ Ideal.span {x, y} := by
@@ -197,8 +227,12 @@ unsafe def leanM2Tactic : Tactic
 -- example (x: ℝ) : ((fun (t:ℝ) => t) (Real.sqrt ((2:ℚ):ℝ))) + x ∈ Ideal.span {((fun (t:ℝ) => t) (Real.sqrt ((2:ℚ):ℝ))) + x}  := by
 --   lean_m2 (fun (t:ℝ) => t) [x]
 
--- example (x y z: ℚ) : x^2+y^2 ∈ Ideal.span {x,y,z}  := by
---   lean_m2 (fun (t:ℚ) => t) [x,y,z]
+
+-- example (z : ℂ) :  z ∈ Ideal.span {(-Complex.I)* z}  := by
+--   lean_m2 (fun (t:ℂ) => t) [z]
+
+--   example (x y : ℂ) : x^2 + y^2 ∈ Ideal.span {x-Complex.I*y} := by
+--     lean_m2 (fun (t:ℂ) => t) [x,y]
 
 -- example (x y z: ℂ) : x^2+y^2 ∈ Ideal.span {x,y,z}  := by
 --   lean_m2 (fun (t:ℂ) => t) [x,y,z]

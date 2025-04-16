@@ -35,10 +35,6 @@ instance {p} : M2Type (ZMod p) (M2ZMod p) where
 -- #check M2Type (ZMod 3) _
 
 
-def getM2Type (T : Type*) {M2T} [M2Type T M2T] : Type* :=
-  M2T
-
-#reduce (types := true) getM2Type (ZMod 22)
 
 
 instance {p} : M2Repr (M2ZMod p) where
@@ -95,98 +91,6 @@ instance {p : Nat}: parseableRepr s!"ZZ/{p}" where
 
 end ZModM2
 
-
--- REDO GF(p,n) BY DATA SYNTH AS FIN (p^n)
-
--- open Polynomial Finset
--- open scoped Polynomial
--- namespace GFM2
-
-
--- def M2GF (p n : Nat) : Type := Fin (p^n)
-
--- noncomputable def M2GF.toLean {p n} [Fact (Nat.Prime p)] (r : M2GF p n) : GaloisField p n :=
---   r.val
-
-
-
--- instance : Fact (Nat.Prime 7) := by decide
--- -- #check ((-9) : GaloisField 2 3)
--- noncomputable
--- instance {p} [Fact (Nat.Prime p)] {n} : M2Type (GaloisField p n) (M2GF p n) where
---   toLean e := e.toLean
-
-
--- instance {p n} : M2Repr (M2GF p n) where
---   repr := s!"GF({p},{n})"
-
-
--- def toString' {p n} (r : M2GF p n) : String :=
---   s!"{r.val}"
-
--- instance {p n} : ToString (M2GF p n) where
---   toString r :=  toString' r
-
-
--- #check ((7 :ℕ ): GaloisField 7 2)
--- #check (Ideal.Quotient.mk (RingHom.ker (MvPolynomial.aeval (R := (ZMod 7)) id).toRingHom) (X : (ZMod 7)[X]): GaloisField 7 2)
--- #check ((X ^ 7 ^ 2 - (X:(ZMod 7)[X])).degree)
--- #check SplittingFieldAux ((X ^ 7 ^ 2 - (X:(ZMod 7)[X])).natDegree)
-
-
--- #check (algebraMap _ _ (3^2 : (ZMod 7)) : GaloisField 7 2)
--- open Qq in -- TODO FIGURE OUT INST FOR GF
--- def M2GF.toLeanExpr {p n} [inst : Fact (Nat.Prime p)]: (M2GF p n) → Lean.Expr → MetaM Lean.Expr := fun r => fun f => do
---   let r' := mkNatLit r.val
---   -- let i := q(Fact (Nat.Prime $p))
---   -- let i := q($inst)
-
---   let F ← mkAppOptM ``GaloisField #[q($p), none,q($n)]
---   mkAppOptM ``Nat.cast #[F, none, r']
-
--- instance {p n} [Fact (Nat.Prime p)] : ToLeanExpr (M2GF p n) where
---   toLeanExpr := M2GF.toLeanExpr
-
--- #check ((7 : ℤ) :ZMod 6)
-
--- def L := (ZMod 3)[X] ⧸ Ideal.span {(X^2 - X - 1 : (ZMod 3)[X])}
--- instance : Field L := by sorry
--- instance : Algebra (ZMod 3) L := by sorry
-
--- noncomputable def f : (ZMod 3)[X] := X^3^2-X
--- instance : IsSplittingField (ZMod 3) L f where
---   splits' : Splits (algebraMap (ZMod 3) L) f := sorry
---   adjoin_rootSet' : Algebra.adjoin (ZMod 3) (f.rootSet L) = ⊤ := sorry
-
--- noncomputable def x := Polynomial.IsSplittingField.algEquiv L f
-
-
-
--- def M2GF.parse {p n}: (Parser (M2GF p n)) :=  do
---     -- Try to match a^n format
---     let _ ← pchar 'a'
---     let _ ← pchar '^'
---     let exponent ← manyChars (satisfy fun c => c.isDigit)
---     match exponent.toNat? with
---     | some e =>
---       if e < p^n then
---       pure ⟨e, by {
---         apply Nat.lt_pow_self
---         · exact e
---         · exact n
---         · simp [p]
---       }⟩
---       else
---       fail s!"Exponent {e} out of range for GF({p},{n})"
---     | none => fail s!"Could not parse '{exponent}' as a natural number"
-
-
--- instance {p n} : Unrepr (M2GF p n) where
---   parse := M2GF.parse
-
-
-
--- end GFM2
 
 
 open Polynomial
