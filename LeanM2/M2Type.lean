@@ -83,7 +83,7 @@ def toString' (r : M2Real) : String :=
   | .sqrt x => "sqrt(" ++ toString' x ++ ")"
   | .log arg => "log(" ++ toString' arg ++ ")"
   | .exp x => "exp(" ++ toString' x ++ ")"
-  | .pi => "π"
+  | .pi => "pi"
   | .add x y => "(" ++ toString' x ++ " + " ++ toString' y ++ ")"
   | .mul x y => "(" ++ toString' x ++ " * " ++ toString' y ++ ")"
   | .pow x y => "(" ++ toString' x ++ "^" ++ toString' y ++ ")"
@@ -149,7 +149,7 @@ def toString' (r : M2Complex) : String :=
   | .log arg => "log(" ++ toString' arg ++ ")"
   | .exp x => "exp(" ++ toString' x ++ ")"
   | .pi => "π"
-  | .i => "i"
+  | .i => "ii"
   | .add x y => "(" ++ toString' x ++ " + " ++ toString' y ++ ")"
   | .mul x y => "(" ++ toString' x ++ " * " ++ toString' y ++ ")"
   | .pow x y => "(" ++ toString' x ++ "^" ++ toString' y ++ ")"
@@ -428,3 +428,6 @@ def partialToString (x : R) {m : M2R} (hx : LiftM2 x m := by data_synth) : Strin
 
 
 #eval partialToString (Real.exp ((3:ℚ)*(2:ℚ) : ℝ))
+
+
+#eval partialToString (Complex.I)

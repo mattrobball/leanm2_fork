@@ -207,7 +207,7 @@ mutual
 
   partial def parseM2RealFactor : Parser M2Real := do
     (do -- Parse pi
-      skipString "pi"
+      skipString "3.14159"
       ws
       parseM2RealPowRest M2Real.pi)
     <|>
@@ -327,7 +327,7 @@ mutual
       parseM2ComplexPowRest M2Complex.pi)
     <|>
     (do -- Parse pi
-      skipString "i"
+      skipString "ii"
       ws
       parseM2ComplexPowRest M2Complex.i)
     <|>
