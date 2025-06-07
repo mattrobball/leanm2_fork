@@ -14,3 +14,6 @@ require scilean from git
 
 @[default_target]
 lean_lib LeanM2 where
+
+@[default_target]
+lean_lib Examples where

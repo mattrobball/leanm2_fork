@@ -33,6 +33,12 @@ example (x y : ℚ) : 3 * x^2 + 2 * y^2 ∈ Ideal.span {x^2, y^2} := by
 example (x : ℤ) : 6 * x ∈ Ideal.span {2 * x, 3 * x} := by
   lean_m2 z [x]
 
+example (x : ℤ) : x ∈ Ideal.span {x * x} := by
+  lean_m2 z [x]
+
+example (x : ℤ) : 1 ∈ Ideal.span {x * x} := by
+  lean_m2 z [x]
+
 example (a b c : ℚ) : a * b^2 * c^3 ∈ Ideal.span {a, b, c} := by
   lean_m2 q [a, b, c]
 
@@ -41,7 +47,8 @@ example (a b c : ℚ) : a * b^2 * c^3 ∈ Ideal.span {a, b, c} := by
 example (a b c d e f : ℚ) : a^3*c+a^2*b*d-a^2*e*f+a*d*e^2-a*c*d*f
   ∈ Ideal.span {a^2+b*c-d*e, a*b+c*d-e*f, a*c+b*d-f^2}  := by
   lean_m2 q [a,b,c,d,e,f]
-  sorry
+
+
 
 example (a b c d e f : ℚ) : a^4+a^2*b*c-a^2*d*e+a*b^3+b^2*c*d-b^2*e*f+a*c^3+b*c^2*d-c^2*f^2
   ∈ Ideal.span {a^2+b*c-d*e, a*b+c*d-e*f, a*c+b*d-f^2}  := by
