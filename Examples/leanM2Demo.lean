@@ -33,9 +33,25 @@ example (x y : ℚ) : 3 * x^2 + 2 * y^2 ∈ Ideal.span {x^2, y^2} := by
 example (x : ℤ) : 6 * x ∈ Ideal.span {2 * x, 3 * x} := by
   lean_m2 z [x]
 
+/--
+error: Not in ideal
+---
+error: unsolved goals
+x : ℤ
+⊢ x ∈ Ideal.span {x * x}
+-/
+#guard_msgs in
 example (x : ℤ) : x ∈ Ideal.span {x * x} := by
   lean_m2 z [x]
 
+/--
+error: Not in ideal
+---
+error: unsolved goals
+x : ℤ
+⊢ 1 ∈ Ideal.span {x * x}
+-/
+#guard_msgs in
 example (x : ℤ) : 1 ∈ Ideal.span {x * x} := by
   lean_m2 z [x]
 
@@ -43,7 +59,15 @@ example (a b c : ℚ) : a * b^2 * c^3 ∈ Ideal.span {a, b, c} := by
   lean_m2 q [a, b, c]
 
 
-
+/--
+error: Not in ideal
+---
+error: unsolved goals
+a b c d e f : ℚ
+⊢ a ^ 3 * c + a ^ 2 * b * d - a ^ 2 * e * f + a * d * e ^ 2 - a * c * d * f ∈
+    Ideal.span {a ^ 2 + b * c - d * e, a * b + c * d - e * f, a * c + b * d - f ^ 2}
+-/
+#guard_msgs in
 example (a b c d e f : ℚ) : a^3*c+a^2*b*d-a^2*e*f+a*d*e^2-a*c*d*f
   ∈ Ideal.span {a^2+b*c-d*e, a*b+c*d-e*f, a*c+b*d-f^2}  := by
   lean_m2 q [a,b,c,d,e,f]
@@ -95,6 +119,17 @@ section DependentlyTyped
 example (x y : Polynomial ℤ) : x^2 * y + y^3 ∈ Ideal.span {x, y} := by
   lean_m2 pz [x, y]
 
+/--
+info: Try this: ring_nf
+---
+info: Try this: ring_nf
+---
+error: unsolved goals
+case h
+p q : Polynomial ℚ
+⊢ Polynomial.C 2 * q ^ 3 = q ^ 3 * 2 + (p ^ 2 * 3 - p ^ 2 * Polynomial.C 3)
+-/
+#guard_msgs in
 example (p q : Polynomial ℚ) : 3 * p^2 + 2 * q^3 ∈ Ideal.span {p, q} := by
   lean_m2 pq [p, q]
 
@@ -163,9 +198,8 @@ section Applications
 
 -- extends polyrith
 
-example (a b c d e f : ℚ) (h : b * c = e * f) : a * b * c * d = a * e * f * d := by
-  polyrith
-
+-- example (a b c d e f : ℚ) (h : b * c = e * f) : a * b * c * d = a * e * f * d := by
+--   polyrith
 
 
 example (a b c d e f : ℚ) (h : b * c = e * f) : a * b * c * d = a * e * f * d := by

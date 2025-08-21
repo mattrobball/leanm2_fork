@@ -16,7 +16,7 @@ def idealMemM2(cmd):
     try:
         # Run M2 command and capture output
         result = subprocess.run(
-            f"/Applications/Macaulay2-1.21/bin/M2 < {temp_file_path}",
+            f"M2 < {temp_file_path}",
             shell=True,
             capture_output=True,
             text=True,

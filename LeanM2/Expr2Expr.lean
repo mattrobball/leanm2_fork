@@ -16,10 +16,10 @@ def checkNoFVars (e : Lean.Expr) (errMsg : Array Lean.Expr → MessageData) : Me
 
 
 
-open Lean Meta in
-def _root_.SciLean.Tactic.DataSynth.DataSynthM.runInMetaM (e : SciLean.Tactic.DataSynth.DataSynthM α) : MetaM α := do
-  e.runInSimpM.run (← Simp.mkDefaultMethods).toMethodsRef (← Simp.mkContext) (← ST.mkRef {})
-
+-- open Lean Meta in
+-- def _root_.SciLean.Tactic.DataSynth.DataSynthM.runInMetaM (e : SciLean.Tactic.DataSynth.DataSynthM α) : MetaM α := do
+--   e.runInSimpM.run (← Simp.mkDefaultMethods).toMethodsRef (← Simp.mkContext) (← ST.mkRef {})
+--
 
 
 

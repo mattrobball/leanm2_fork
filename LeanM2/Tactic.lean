@@ -117,7 +117,9 @@ unsafe def leanM2Tactic : Tactic
 
   let atoms' := parseExprList atoms
   let cmd := s!"R={repr}{if atoms'.length == 0 then "" else s!"{List.range atoms'.length |>.map (fun i => s!"x{i}")}"}\nf={polynomial}\nI={ideal}\nG=gb(I,ChangeMatrix=>true)\nf % G\n(getChangeMatrix G)*(f// groebnerBasis I)"
-  -- logInfo s!"{cmd}"
+  -- logInfo s!"command: {cmd}"
+  -- logInfo s!"command to Json: {Json.str cmd |>.compress}"
+
   let res? ← idealMemM2' cmd
   if res?.isNone then
     logError s!"Not in ideal"
@@ -151,7 +153,7 @@ unsafe def leanM2Tactic : Tactic
       logError m!"failed to parse polynomial coefficients: {mappedRes'_opt.filter (fun (_, b) => b.isNone)|>.map (fun (a,_) => a)}"
 
     let mappedRes' : Array (Lean.Expr × Lean.Expr) := mappedRes'_opt.map (fun (a,b) => (a, b.get!))
-    logInfo m!"mappedRes': {mappedRes'}"
+    -- logInfo m!"mappedRes': {mappedRes'}"
 
     -- let mappedRes'' :Array (Lean.Expr × Lean.Expr) ←  mappedRes'.mapM (fun (a,b) => do
     --   let b' ← b.toLeanExpr' outputRing lift atoms'
@@ -169,7 +171,7 @@ unsafe def leanM2Tactic : Tactic
       let negTerm ← Lean.PrettyPrinter.delab neg
       return negTerm
     )
-    logInfo m!"mappedRes'': {mappedRes''}"
+    -- logInfo m!"mappedRes'': {mappedRes''}"
 
     -- logInfo m!"lifter: {lift}"
 
@@ -186,6 +188,7 @@ unsafe def leanM2Tactic : Tactic
     -- Check if there are any goals left, and run ring if needed
     let gs ← getGoals
     if !gs.isEmpty then
+      -- evalTactic (← `(tactic| grind))
       evalTactic (← `(tactic| ring))
     let gs ← getGoals
     if !gs.isEmpty then
