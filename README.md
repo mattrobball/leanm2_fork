@@ -1,4 +1,4 @@
-# LeanM2
+# LeanM2 -- forked from https://github.com/riyazahuja/lean-m2
 
 *A verified bridge between Lean 4 and Macaulay2.*
 
